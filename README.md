@@ -29,7 +29,6 @@ Bigger tasks and pre-existing systems we want to integrate will have their own b
 **Project:** Hadlock Central: Universal Student Center Management   
 **Team**: Austin Falk, Ben Vail, Ana Richardson; Course: 321 \- A   
 **Status**: Living document — v1.0 (Sprint 1\)   
-**Due:** Tue Sep 29, 2026, 11:59pm  
 ---
 
 ## **1\. Team Info**
