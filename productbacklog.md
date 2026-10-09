@@ -10,7 +10,7 @@
 | TS-03 | As a developer, I want a Flutter app that navigates between screens so that important screens have a place to live. | High | 3 | None |
 | TS-04 | As an HSC employee, I want our current rental equipment loaded into the database so that the app shows our real inventory. | High | 2 | TS-01 |
 | US-01 | As a student, I want to log in with my account so that I can access my personal rentals. | High | 5 | TS-02, TS-03 |
-| US-02 | As an HSC employee, I want staff-only features restricted to staff accounts so that students cannot change any important information. | High | 3 | US-01 |
+| US-02 | As an HSC employee, I want staff features restricted to staff accounts so that students cannot change any important information. | High | 3 | US-01 |
 | US-03 | As a student, I want to see which equipment is available so that I know what I can borrow before going to the desk. | High | 5 | US-01, TS-04 |
 | US-04 | As a student, I want to search and filter equipment by type so that I can find what I need quickly. | Medium | 3 | US-03 |
 | US-05 | As a student, I want to request a checkout and see the terms and due time so that I know what I am agreeing to. | High | 5 | US-03 |
@@ -22,7 +22,7 @@
 | US-11 | As a student, I want to reserve Court 2 for a date, time, and reason so that I have guaranteed access to the court. | High | 8 | US-10 |
 | US-12 | As a student, I want faulty bookings rejected, so that I can quickly rebook the available option. | Medium | 5 | US-11 |
 | US-13 | As a student, I want to change or cancel my reservation when my plans change. | Medium | 3 | US-11 |
-| US-14 | As an HSC employee, I want to approve or override reservations so that I can handle special cases and borderline requests. | Low | 3 | US-11, US-02 |
+| US-14 | As an HSC employee, I want to approve or override reservations so that I can handle special cases. | Low | 3 | US-11, US-02 |
 | US-15 | As an HSC employee, I want to add an event with a date, time, location, and description so that students can see what is happening at Hadlock. | High | 5 | US-02, US-10 |
 | US-16 | As an HSC employee, I want to be told when a new event conflicts with an existing one so that I can choose a different time or location. | Medium | 3 | US-15 |
 | US-17 | As a student, I want to view upcoming events and announcements in one place so that I stay informed without checking multiple channels. | High | 3 | US-15 |
@@ -37,7 +37,7 @@
 
 | Sprint 1 requirement | Backlog items |
 |---|---|
-| MVP feature 1: Login student and staff) | US-01, US-02 |
+| MVP feature 1: Login student and staff | US-01, US-02 |
 | MVP feature 4 / UC1: Equipment checkout | US-03 to US-09 |
 | MVP feature 2 / UC2: Court booking | US-10 to US-14 |
 | MVP feature 3 / UC3: Add event / announcements | US-15 to US-18 |
