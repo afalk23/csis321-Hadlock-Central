@@ -29,7 +29,7 @@
 | US-18 | As a student, I want a push notification when a new event is added so that I do not miss it. | Medium | 8 | US-15 |
 | US-19 | As a student, I want to log in with my GFU credentials so that I do not need a separate account. | Low | 13 | US-01; GFU IT API access (Sprint 1, Risk 1) |
 
-**Totals:** 24 items, 114 story points. High: 14 items / 58 pts. Medium: 6 items / 25 pts. Low: 4 items / 31 pts.
+**Totals:** 23 items, 101 story points. High: 14 items / 58 pts. Medium: 6 items / 25 pts. Low: 3 items / 18 pts.
 
 `TS-` items are technical stories written by the developer; `US-` items are user stories.
 
