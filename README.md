@@ -218,12 +218,12 @@ Bigger tasks and pre-existing systems we want to integrate will have their own b
 ## **7\. Software Design**
 
 Functional Decomposition \-  
-[see the decomposition diagram](functional-decomposition(1).png)
+[see the decomposition diagram]([functional-decomposition(1).png](https://github.com/afalk23/csis321-Hadlock-Central/blob/main/docs/images/functional-decomposition(1).png))
 [clearer viw in the living document](https://docs.google.com/document/d/10KF_cN4KRyqI0yxjn0exNhJOC2QAQr199yEGjbM6Rlo/edit?tab=t.0#heading=h.m282nthsljf2)
 
 
 Data Modeling \- A detailed and complete ER model  
-[see the ER diagram](er-diagram.png)
+[see the ER diagram]([er-diagram.png](https://github.com/afalk23/csis321-Hadlock-Central/blob/main/docs/images/er-diagram.png))
 [clearer viw in the living document](https://docs.google.com/document/d/10KF_cN4KRyqI0yxjn0exNhJOC2QAQr199yEGjbM6Rlo/edit?tab=t.0#heading=h.m282nthsljf2)
 
 
