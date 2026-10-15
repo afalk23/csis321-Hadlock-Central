@@ -45,7 +45,7 @@ Bigger tasks and pre-existing systems we want to integrate will have their own b
 
 * Git repository: [Hadlock-Central Link](https://github.com/afalk23/csis321-Hadlock-Central)   
 * Project board [Trello](https://trello.com/b/HBZdkDNa)  
-* Living document [here]()
+* Living document [here](https://docs.google.com/document/d/10KF_cN4KRyqI0yxjn0exNhJOC2QAQr199yEGjbM6Rlo/edit?tab=t.0#heading=h.m282nthsljf2)
 
 ### **1.3 Communication Channels & Rules**
 
@@ -198,4 +198,43 @@ Bigger tasks and pre-existing systems we want to integrate will have their own b
 * **When:** Getting feedback based on our prototype of the app, will be the most helpful because we will be able to see what design elements are most appealing and which basic features carry importance.  
 * **From whom:** Feedback from the staff will be the most beneficial  
 * **How:** Allowing staff to try a sample version of the app will give them enough exposure to make a decision regarding their preferences.
+
+## **6\. Software Architecture**
+
+1. Identify and describe the major software components and their functionality at a conceptual level  
+   1. **Flutter Application:** this is the front end of the application. It is comprised of the user interface, some state management, and most importantly, takes in user inputs for the desired equipment rentals and room reservations. It doesn’t process logic or connect to the database itself.   
+      **API Server / Backend:** This is the logic between our app and database. It receives user requests from the front end and checks to make sure that the requests either can or can’t go through. It handles reading and writing to the database as well.   
+      **MongoDB:** This database will hold the storage for all user profiles, equipment, inventory, and scheduling information. It only interacts with the API  
+      External Integration: A third-party system will be connected with the existing Gmail to send notifications as desired by the Hadlock staff.  
+   2. **Flutter App & API:** These will communicate together using HTTP/REST. The Flutter app will send methods like GET, POST, PUT, DELETE to create actions that can be delivered to the proper endpoints.   
+      **API & MongoDB:** This backend will communicate with the database by transmitting requests over a connection to a MongoDB cluster  
+      **API & Notifications:** The backend will send HTTP requests that contain formatted messages that can be sent to the proper API endpoints.  
+        
+2. Describe in detail what data your system stores, and how. If it uses a database, give the high-level database schema.  
+   1. Our system will use a MongoDB database to store the data. It will be stored in one cluster with different collections for each type of entity in the system. There will be a collection of users; each user will have an email address, first and last name, password, and an ID. There will be a collection of equipment that stores each object with its type, quantity, and amount currently rented out. Lastly, there will be a collection for courts and rooms that stores each location, date it is booked for, the time it is booked for, and the description of what it’s booked for.
+
+---
+
+## **7\. Software Design**
+
+Functional Decomposition \-  
+[see the decomposition diagram](functional-decomposition(1).png)
+[clearer viw in the living document](https://docs.google.com/document/d/10KF_cN4KRyqI0yxjn0exNhJOC2QAQr199yEGjbM6Rlo/edit?tab=t.0#heading=h.m282nthsljf2)
+
+
+Data Modeling \- A detailed and complete ER model  
+[see the ER diagram](er-diagram.png)
+[clearer viw in the living document](https://docs.google.com/document/d/10KF_cN4KRyqI0yxjn0exNhJOC2QAQr199yEGjbM6Rlo/edit?tab=t.0#heading=h.m282nthsljf2)
+
+
+
+---
+
+## **8\. Coding Guideline**
+
+[**Effective Dart**](https://dart.dev/effective-dart)
+
+We chose this guideline because it provides a consistent foundation for writing quality Flutter and Dart code. These standards emphasize readability, maintainability, and performance, which are essential for our project. We plan to enforce the guidelines through automated tools and team collaboration. We will use Dart’s built-in linter and formatter to automatically check for style and syntax consistency to ensure that the code is up to standard. Code reviews will also serve as a way to enforce the guidelines, where team members verify that they are following the guidelines as well as share perspectives and offer constructive feedback.  
+---
+
 
