@@ -235,6 +235,11 @@ Data Modeling \- A detailed and complete ER model
 [**Effective Dart**](https://dart.dev/effective-dart)
 
 We chose this guideline because it provides a consistent foundation for writing quality Flutter and Dart code. These standards emphasize readability, maintainability, and performance, which are essential for our project. We plan to enforce the guidelines through automated tools and team collaboration. We will use Dart’s built-in linter and formatter to automatically check for style and syntax consistency to ensure that the code is up to standard. Code reviews will also serve as a way to enforce the guidelines, where team members verify that they are following the guidelines as well as share perspectives and offer constructive feedback.  
+
+[**Python Style Guide**](https://jgnanadurai.cs.georgefox.edu/resources/python/gfu-python-style-guide.pdf)
+
+We chose this style guide because we are all familiar with it from taking CSIS 201. This guideline highlights the readability and maintainability that the backend API will need. We plan to enforce this style guide through conscientious coding habits and by double-checking documentation before committing. We will also have code reviews to enforce the guidelines and verify that all code is being properly documented and written.
+
 ---
 
 
