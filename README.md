@@ -1,6 +1,7 @@
 <p align="center">
-  <img alt="header" src="https://shieldcn.dev/header/gradient.svg?title=%E2%9B%B3%EF%B8%8F+Hadlock+-+Central+%F0%9F%8F%8C%EF%B8%8F%E2%80%8D%E2%99%82%EF%B8%8F&amp;subtitle=An+all+in+one+student+center&amp;size=wide&amp;mode=dark&amp;font=jetbrains-mono&amp;image=https%3A%2F%2Flh3.googleusercontent.com%2Fgps-cs-s%2FAHRPTWnPH35fIgspdls_F2xJSSF8z41GGk8i3gCKa1DEkg0b6ZziMR5X4oIoVM_RjM3Cs8TihyIGl1tsU1tuRYou1tvPPl4b0Bg_zxzntCAfqeNGBNXCXx8vGU9qMI69Ymq17BfIjLlj%3Ds1360-w1360-h1020-rw&amp;overlay=.45" />
+  <img alt="header" src="https://shieldcn.dev/header/surface.svg?title=%E2%9B%B3%EF%B8%8F+HadLock+Central+%F0%9F%8F%8C%EF%B8%8F%E2%80%8D%E2%99%82%EF%B8%8F&amp;subtitle=All+in+one+student+center&amp;mode=dark&amp;image=https%3A%2F%2Fwww.georgefox.edu%2Frecreation%2Fstudent-center%2F_assets-index%2Fimages%2Fexterior_dsc7899.webp&amp;overlay=.50" />
 </p>
+
 
 ## What Are We Building?
 
