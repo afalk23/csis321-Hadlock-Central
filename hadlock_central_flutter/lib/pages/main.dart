@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:hadlaock_central_flutter/data/announcement_repository.dart';
+import 'package:hadlaock_central_flutter/data/calendar_repository.dart';
+import 'package:hadlaock_central_flutter/pages/announcements.dart';
 import 'package:hadlaock_central_flutter/pages/schedulePage.dart';
 
 void main() => runApp(const HadlockCentralApp());
@@ -53,14 +56,23 @@ class _AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<_AppShell> {
-  int _selectedIndex = 0;
+  int _selectedIndex = 1;
+  final AnnouncementRepository _announcementRepository =
+      InMemoryAnnouncementRepository();
+  final CalendarRepository _calendarRepository = InMemoryCalendarRepository();
 
   @override
   Widget build(BuildContext context) {
     final wide = MediaQuery.sizeOf(context).width >= 760;
-    final page = _selectedIndex == 0
-        ? const _HomePage()
-        : _PlaceholderPage(destination: _destinations[_selectedIndex]);
+    final page = switch (_selectedIndex) {
+      0 => _HomePage(
+        announcementRepository: _announcementRepository,
+        onOpenAnnouncements: () => _select(3),
+      ),
+      1 => SchedulePage(repository: _calendarRepository),
+      3 => AnnouncementsPage(repository: _announcementRepository),
+      _ => _PlaceholderPage(destination: _destinations[_selectedIndex]),
+    };
 
     return Scaffold(
       appBar: wide
@@ -112,7 +124,13 @@ class _AppShellState extends State<_AppShell> {
 }
 
 class _HomePage extends StatelessWidget {
-  const _HomePage();
+  const _HomePage({
+    required this.announcementRepository,
+    required this.onOpenAnnouncements,
+  });
+
+  final AnnouncementRepository announcementRepository;
+  final VoidCallback onOpenAnnouncements;
 
   @override
   Widget build(BuildContext context) {
@@ -161,7 +179,10 @@ class _HomePage extends StatelessWidget {
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const SizedBox(height: 14),
-                  const _AnnouncementCard(),
+                  _AnnouncementCard(
+                    repository: announcementRepository,
+                    onOpenAnnouncements: onOpenAnnouncements,
+                  ),
                   const SizedBox(height: 14),
                   const _EventCard(),
                   const SizedBox(height: 28),
@@ -329,13 +350,79 @@ class _QuickLinkCard extends StatelessWidget {
 }
 
 class _AnnouncementCard extends StatelessWidget {
-  const _AnnouncementCard();
+  const _AnnouncementCard({
+    required this.repository,
+    required this.onOpenAnnouncements,
+  });
+
+  final AnnouncementRepository repository;
+  final VoidCallback onOpenAnnouncements;
+
   @override
-  Widget build(BuildContext context) => _InfoCard(
-    icon: Icons.campaign_outlined,
-    title: 'Announcements will show here',
-    detail: 'Staff updates can be brought into one place for students and employees.',
-    tag: 'Updates',
+  Widget build(BuildContext context) => FutureBuilder(
+    future: repository.getAnnouncements(),
+    builder: (context, snapshot) {
+      final announcements = snapshot.data;
+      final announcement = announcements == null || announcements.isEmpty
+          ? null
+          : announcements.first;
+      if (announcement == null) {
+        return _InfoCard(
+          icon: Icons.campaign_outlined,
+          title: 'Announcements',
+          detail:
+              'Hadlock news, events, and facility updates will appear here.',
+          tag: 'Updates',
+        );
+      }
+      return Card(
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onOpenAnnouncements,
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.campaign_outlined,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        announcement.title,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        announcement.body,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      const SizedBox(height: 10),
+                      TextButton.icon(
+                        onPressed: onOpenAnnouncements,
+                        icon: const Icon(Icons.arrow_forward, size: 17),
+                        label: const Text('View all announcements'),
+                      ),
+                    ],
+                  ),
+                ),
+                if (MediaQuery.sizeOf(context).width > 540) ...[
+                  const SizedBox(width: 12),
+                  const _StatusPill(label: 'Latest'),
+                ],
+              ],
+            ),
+          ),
+        ),
+      );
+    },
   );
 }
 
