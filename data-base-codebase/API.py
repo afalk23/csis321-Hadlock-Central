@@ -27,6 +27,7 @@ def login():
     :return: Message success or failure as well as user information
     '''
     message = {}
+    
     if mongo.db.Users.find_one({'email': request.json['email'], 'password': request.json['password']}):
         user = mongo.db.Users.find_one({'email': request.json['email'], 'password': request.json['password']})
         message = {'message': 'Login Successful', 'success': True, 'user': user}
