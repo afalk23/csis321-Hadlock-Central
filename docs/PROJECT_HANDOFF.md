@@ -115,6 +115,12 @@ A submission issue was reported while testing in Chrome. The form now displays i
 2. How will Flutter receive the authenticated user's staff role (token/session claims or another agreed interface)?
 3. Is the university rental system exposing a supported API, or should Hadlock Central store its own facility bookings in its project MongoDB?
 
+## Equipment catalog update — November 4, 2026
+
+The Equipment navigation destination now opens a responsive catalog page instead of a placeholder. It has All products plus Transportation, Games and activities, Climbing, Mountaineering, Backpacking, Watersports, and Winter equipment filters, text search, and item details. The page uses `EquipmentRepository` and an in-memory sample catalog in `hadlock_central_flutter/lib/data/equipment_repository.dart`; the item and category model is in `lib/models/equipment_item.dart`, and the UI is in `lib/pages/equipment_page.dart`.
+
+The example products are for interface review only. No real inventory, quantities, availability, checkout, or rental history is connected. Replace the sample repository with an API implementation when the backend inventory contract is agreed, and keep server-side availability and checkout rules authoritative.
+
 ## Platform setup findings — November 3, 2026
 
 - The actual Flutter package root is `hadlock_central_flutter/`, where `pubspec.yaml`, `lib/main.dart`, and the Android/iOS projects live. Open this folder in Android Studio or VS Code. The repository root has no Flutter `pubspec.yaml`.

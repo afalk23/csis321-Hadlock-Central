@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:hadlock_central_flutter/data/announcement_repository.dart';
 import 'package:hadlock_central_flutter/data/calendar_repository.dart';
-import 'package:hadlock_central_flutter/models/announcement.dart';
+import 'package:hadlock_central_flutter/data/equipment_repository.dart';
 import 'package:hadlock_central_flutter/pages/announcements.dart';
 import 'package:hadlock_central_flutter/pages/schedule_page.dart';
+import 'package:hadlock_central_flutter/pages/equipment_page.dart';
 import 'package:hadlock_central_flutter/pages/home_page.dart';
 
 void main() => runApp(const HadlockCentralApp());
@@ -48,7 +49,7 @@ class HadlockCentralApp extends StatelessWidget {
 }
 
 class AppShell extends StatefulWidget {
-  const AppShell();
+  const AppShell({super.key});
 
   @override
   State<AppShell> createState() => AppShellState();
@@ -59,6 +60,8 @@ class AppShellState extends State<AppShell> {
   final AnnouncementRepository _announcementRepository =
       InMemoryAnnouncementRepository();
   final CalendarRepository _calendarRepository = InMemoryCalendarRepository();
+  final EquipmentRepository _equipmentRepository =
+      InMemoryEquipmentRepository();
 
   @override
   Widget build(BuildContext context) {
@@ -69,6 +72,7 @@ class AppShellState extends State<AppShell> {
         onOpenAnnouncements: () => select(3),
       ),
       1 => SchedulePage(repository: _calendarRepository),
+      2 => EquipmentPage(repository: _equipmentRepository),
       3 => AnnouncementsPage(repository: _announcementRepository),
       _ => PlaceholderPage(destination: _destinations[_selectedIndex]),
     };
