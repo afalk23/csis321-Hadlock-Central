@@ -14,6 +14,22 @@ abstract interface class CalendarRepository {
   Future<void> deleteEntry(String id);
 }
 
+class CalendarConflictException implements Exception {
+  const CalendarConflictException(this.conflictingEntry);
+
+  final CalendarEntry conflictingEntry;
+
+  String get message =>
+      '${conflictingEntry.location} is already reserved at that time. '
+      'Choose a different time or location.';
+}
+
+class CalendarValidationException implements Exception {
+  const CalendarValidationException(this.message);
+
+  final String message;
+}
+
 class InMemoryCalendarRepository implements CalendarRepository {
   InMemoryCalendarRepository() : _entries = _sampleEntries();
 
@@ -21,16 +37,14 @@ class InMemoryCalendarRepository implements CalendarRepository {
 
   static List<CalendarEntry> _sampleEntries() {
     final today = DateTime.now();
-    final daysUntilSaturday = (DateTime.saturday - today.weekday) % 7;
+    final weekdayOffset = (DateTime.saturday - today.weekday) % 7;
+    // Keep the demo entries in the future even when the app opens on Saturday.
+    final daysUntilSaturday = weekdayOffset == 0 ? 7 : weekdayOffset;
     final saturday = DateTime(
       today.year,
       today.month,
       today.day + daysUntilSaturday,
     );
-    final futureSaturday = saturday.day < today.day
-        ? saturday.add(const Duration(days: 7))
-        : saturday;
-
     return [
       CalendarEntry(
         id: 'sample-open-gym',
@@ -38,18 +52,8 @@ class InMemoryCalendarRepository implements CalendarRepository {
         description: 'Drop in for an open recreation session.',
         location: 'Main gym',
         type: CalendarEntryType.event,
-        startsAt: DateTime(
-          futureSaturday.year,
-          futureSaturday.month,
-          futureSaturday.day,
-          16,
-        ),
-        endsAt: DateTime(
-          futureSaturday.year,
-          futureSaturday.month,
-          futureSaturday.day,
-          18,
-        ),
+        startsAt: DateTime(saturday.year, saturday.month, saturday.day, 16),
+        endsAt: DateTime(saturday.year, saturday.month, saturday.day, 18),
       ),
       CalendarEntry(
         id: 'sample-court-booking',
@@ -57,18 +61,8 @@ class InMemoryCalendarRepository implements CalendarRepository {
         description: 'Court unavailable during this time.',
         location: 'Court 2',
         type: CalendarEntryType.booking,
-        startsAt: DateTime(
-          futureSaturday.year,
-          futureSaturday.month,
-          futureSaturday.day,
-          13,
-        ),
-        endsAt: DateTime(
-          futureSaturday.year,
-          futureSaturday.month,
-          futureSaturday.day,
-          14,
-        ),
+        startsAt: DateTime(saturday.year, saturday.month, saturday.day, 13),
+        endsAt: DateTime(saturday.year, saturday.month, saturday.day, 14),
       ),
     ];
   }
@@ -78,19 +72,35 @@ class InMemoryCalendarRepository implements CalendarRepository {
 
   @override
   Future<void> addEntry(CalendarEntry entry) async {
-    final hasConflict = _entries.any((existing) {
+    if (entry.title.trim().isEmpty || entry.location.trim().isEmpty) {
+      throw const CalendarValidationException(
+        'Add a title and location before saving.',
+      );
+    }
+    if (!entry.endsAt.isAfter(entry.startsAt)) {
+      throw const CalendarValidationException(
+        'The end time must be after the start time.',
+      );
+    }
+    if (entry.startsAt.isBefore(DateTime.now())) {
+      throw const CalendarValidationException('Choose a future date and time.');
+    }
+
+    CalendarEntry? conflict;
+    for (final existing in _entries) {
       final sameLocation =
-          existing.location.trim().toLowerCase() ==
-          entry.location.trim().toLowerCase();
+          _normalizeLocation(existing.location) ==
+          _normalizeLocation(entry.location);
       final overlaps =
           entry.startsAt.isBefore(existing.endsAt) &&
           existing.startsAt.isBefore(entry.endsAt);
-      return sameLocation && overlaps;
-    });
-    if (hasConflict) {
-      throw StateError(
-        'That location already has an event or booking at this time.',
-      );
+      if (sameLocation && overlaps) {
+        conflict = existing;
+        break;
+      }
+    }
+    if (conflict != null) {
+      throw CalendarConflictException(conflict);
     }
     _entries.add(entry);
   }
@@ -99,4 +109,7 @@ class InMemoryCalendarRepository implements CalendarRepository {
   Future<void> deleteEntry(String id) async {
     _entries.removeWhere((entry) => entry.id == id);
   }
+
+  String _normalizeLocation(String location) =>
+      location.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
 }

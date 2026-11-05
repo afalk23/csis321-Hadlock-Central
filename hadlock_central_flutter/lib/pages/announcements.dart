@@ -27,7 +27,9 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
   @override
   void didUpdateWidget(covariant AnnouncementsPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.repository != widget.repository) _loadAnnouncements();
+    if (oldWidget.repository != widget.repository) {
+      _announcementsFuture = widget.repository.getAnnouncements();
+    }
   }
 
   @override
@@ -49,14 +51,12 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
   }
 
   Future<void> _composeAnnouncement() async {
-    final announcement = await showDialog<Announcement>(
+    final published = await showDialog<bool>(
       context: context,
-      builder: (context) => const _ComposeAnnouncementDialog(),
+      builder: (context) =>
+          _ComposeAnnouncementDialog(onPublish: widget.repository.publish),
     );
-    if (announcement == null) return;
-
-    await widget.repository.publish(announcement);
-    if (!mounted) return;
+    if (published != true || !mounted) return;
     _loadAnnouncements();
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -500,7 +500,9 @@ class _AnnouncementDetailsDialog extends StatelessWidget {
 }
 
 class _ComposeAnnouncementDialog extends StatefulWidget {
-  const _ComposeAnnouncementDialog();
+  const _ComposeAnnouncementDialog({required this.onPublish});
+
+  final Future<void> Function(Announcement announcement) onPublish;
 
   @override
   State<_ComposeAnnouncementDialog> createState() =>
@@ -515,6 +517,8 @@ class _ComposeAnnouncementDialogState
   AnnouncementCategory _category = AnnouncementCategory.event;
   AnnouncementAudience _audience = AnnouncementAudience.everyone;
   bool _isPinned = false;
+  bool _isPublishing = false;
+  String? _formError;
 
   @override
   void dispose() {
@@ -523,21 +527,35 @@ class _ComposeAnnouncementDialogState
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    Navigator.pop(
-      context,
-      Announcement(
-        id: DateTime.now().microsecondsSinceEpoch.toString(),
-        title: _titleController.text.trim(),
-        body: _bodyController.text.trim(),
-        category: _category,
-        audience: _audience,
-        publishedAt: DateTime.now(),
-        author: 'Hadlock Staff (demo)',
-        isPinned: _isPinned,
-      ),
+    final announcement = Announcement(
+      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      title: _titleController.text.trim(),
+      body: _bodyController.text.trim(),
+      category: _category,
+      audience: _audience,
+      publishedAt: DateTime.now(),
+      author: 'Hadlock Staff (demo)',
+      isPinned: _isPinned,
     );
+
+    setState(() {
+      _isPublishing = true;
+      _formError = null;
+    });
+    try {
+      await widget.onPublish(announcement);
+      if (mounted) Navigator.pop(context, true);
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => _formError = 'Could not publish this announcement. Try again.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isPublishing = false);
+    }
   }
 
   @override
@@ -633,6 +651,18 @@ class _ComposeAnnouncementDialogState
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
+              if (_formError != null) ...[
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    _formError!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -640,13 +670,18 @@ class _ComposeAnnouncementDialogState
     ),
     actions: [
       TextButton(
-        onPressed: () => Navigator.pop(context),
+        onPressed: _isPublishing ? null : () => Navigator.pop(context),
         child: const Text('Cancel'),
       ),
       FilledButton.icon(
-        onPressed: _submit,
+        onPressed: _isPublishing ? null : _submit,
         icon: const Icon(Icons.publish_outlined),
-        label: const Text('Publish'),
+        label: _isPublishing
+            ? const SizedBox.square(
+                dimension: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Text('Publish'),
       ),
     ],
   );
@@ -710,8 +745,9 @@ String _formatDate(DateTime date) {
     final hour = date.hour % 12 == 0 ? 12 : date.hour % 12;
     return 'Today, $hour:${date.minute.toString().padLeft(2, '0')} ${date.hour < 12 ? 'AM' : 'PM'}';
   }
-  if (publishedDay == today.subtract(const Duration(days: 1)))
+  if (publishedDay == today.subtract(const Duration(days: 1))) {
     return 'Yesterday';
+  }
   const months = [
     'Jan',
     'Feb',

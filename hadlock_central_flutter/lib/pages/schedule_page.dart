@@ -31,11 +31,15 @@ class _SchedulePageState extends State<SchedulePage> {
   @override
   void didUpdateWidget(covariant SchedulePage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.repository != widget.repository) _reload();
+    if (oldWidget.repository != widget.repository) {
+      _entriesFuture = widget.repository.getEntries();
+    }
   }
 
   void _reload() {
-    setState(() => _entriesFuture = widget.repository.getEntries());
+    setState(() {
+      _entriesFuture = widget.repository.getEntries();
+    });
   }
 
   void _changeMonth(int amount) {
@@ -43,6 +47,16 @@ class _SchedulePageState extends State<SchedulePage> {
       _visibleMonth = DateTime(
         _visibleMonth.year,
         _visibleMonth.month + amount,
+      );
+      final lastDay = DateTime(
+        _visibleMonth.year,
+        _visibleMonth.month + 1,
+        0,
+      ).day;
+      _selectedDate = DateTime(
+        _visibleMonth.year,
+        _visibleMonth.month,
+        _selectedDate.day.clamp(1, lastDay).toInt(),
       );
     });
   }
@@ -56,16 +70,16 @@ class _SchedulePageState extends State<SchedulePage> {
   }
 
   Future<void> _createEntry(CalendarEntryType type) async {
-    final entry = await showDialog<CalendarEntry>(
-      context: context,
-      builder: (context) =>
-          _CreateCalendarEntryDialog(type: type, date: _selectedDate),
-    );
-    if (entry == null) return;
-
     try {
-      await widget.repository.addEntry(entry);
-      if (!mounted) return;
+      final saved = await showDialog<bool>(
+        context: context,
+        builder: (context) => _CreateCalendarEntryDialog(
+          type: type,
+          date: _selectedDate,
+          onSave: widget.repository.addEntry,
+        ),
+      );
+      if (saved != true || !mounted) return;
       _reload();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -73,19 +87,15 @@ class _SchedulePageState extends State<SchedulePage> {
           behavior: SnackBarBehavior.floating,
         ),
       );
-    } on StateError catch (error) {
+    } catch (error, stackTrace) {
+      debugPrint('Could not finish creating a calendar entry: $error');
+      debugPrintStack(stackTrace: stackTrace);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(error.message.toString()),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Could not add this calendar entry: $error'),
+        const SnackBar(
+          content: Text(
+            'Could not complete this calendar action. Refresh and check the schedule before trying again.',
+          ),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -126,11 +136,13 @@ class _SchedulePageState extends State<SchedulePage> {
           behavior: SnackBarBehavior.floating,
         ),
       );
-    } catch (error) {
+    } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Could not delete this calendar entry: $error'),
+          content: const Text(
+            'Could not delete this entry. Refresh the schedule and try again.',
+          ),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -262,64 +274,79 @@ class _SchedulePageState extends State<SchedulePage> {
             ],
           ),
           const SizedBox(height: 8),
-          const _WeekdayLabels(),
-          const SizedBox(height: 6),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final firstOfMonth = DateTime(
-                _visibleMonth.year,
-                _visibleMonth.month,
-              );
-              final daysBeforeMonth = firstOfMonth.weekday % 7;
-              final firstVisibleDate = firstOfMonth.subtract(
-                Duration(days: daysBeforeMonth),
-              );
-              final dates = List.generate(
-                42,
-                (index) => firstVisibleDate.add(Duration(days: index)),
-              );
-              final widthPerCell = constraints.maxWidth / 7;
-              return GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: dates.length,
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 7,
-                  childAspectRatio: widthPerCell / 62,
-                ),
-                itemBuilder: (context, index) {
-                  final date = dates[index];
-                  final dayEntries = _entriesForDate(entries, date);
-                  final inMonth = date.month == _visibleMonth.month;
-                  final selected = _sameDay(date, _selectedDate);
-                  final today = _sameDay(date, DateTime.now());
-                  return _CalendarDayCell(
-                    date: date,
-                    entries: dayEntries,
-                    isInMonth: inMonth,
-                    isSelected: selected,
-                    isToday: today,
-                    onTap: () {
-                      setState(() {
-                        _selectedDate = DateTime(
-                          date.year,
-                          date.month,
-                          date.day,
-                        );
-                        if (!inMonth) {
-                          _visibleMonth = DateTime(date.year, date.month);
-                        }
-                      });
-                    },
-                  );
-                },
-              );
-            },
-          ),
+          _monthGrid(entries),
         ],
       ),
     ),
   );
+
+  Widget _monthGrid(List<CalendarEntry> entries) {
+    // Sunday is column zero, matching the weekday labels below. Dart numbers
+    // weekdays Monday=1 through Sunday=7, so modulo 7 gives Sunday=0.
+    final firstOfMonth = DateTime(_visibleMonth.year, _visibleMonth.month);
+    final firstColumn = firstOfMonth.weekday % DateTime.daysPerWeek;
+    final dates = List.generate(
+      42,
+      (index) => DateTime(
+        _visibleMonth.year,
+        _visibleMonth.month,
+        index - firstColumn + 1,
+      ),
+    );
+    const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    return Table(
+      children: [
+        TableRow(
+          children: [
+            for (final day in weekdays)
+              SizedBox(
+                height: 30,
+                child: Center(
+                  child: Text(
+                    day,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        for (var week = 0; week < 6; week++)
+          TableRow(
+            children: [
+              for (var weekday = 0; weekday < DateTime.daysPerWeek; weekday++)
+                _buildDayCell(
+                  dates[week * DateTime.daysPerWeek + weekday],
+                  entries,
+                ),
+            ],
+          ),
+      ],
+    );
+  }
+
+  Widget _buildDayCell(DateTime date, List<CalendarEntry> entries) {
+    if (date.month != _visibleMonth.month) {
+      // Blank out spillover dates so they cannot be mistaken for dates in the
+      // displayed month. Month navigation is available in the header.
+      return const SizedBox(height: 62);
+    }
+
+    return SizedBox(
+      height: 62,
+      child: _CalendarDayCell(
+        date: date,
+        entries: _entriesForDate(entries, date),
+        isInMonth: true,
+        isSelected: _sameDay(date, _selectedDate),
+        isToday: _sameDay(date, DateTime.now()),
+        onTap: () => setState(() => _selectedDate = date),
+      ),
+    );
+  }
 }
 
 class _ScheduleHeader extends StatelessWidget {
@@ -422,30 +449,6 @@ class _DemoModeNotice extends StatelessWidget {
         ),
       ],
     ),
-  );
-}
-
-class _WeekdayLabels extends StatelessWidget {
-  const _WeekdayLabels();
-
-  static const labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-  @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      for (final label in labels)
-        Expanded(
-          child: Center(
-            child: Text(
-              label,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ),
-    ],
   );
 }
 
@@ -745,10 +748,15 @@ class _LegendItem extends StatelessWidget {
 }
 
 class _CreateCalendarEntryDialog extends StatefulWidget {
-  const _CreateCalendarEntryDialog({required this.type, required this.date});
+  const _CreateCalendarEntryDialog({
+    required this.type,
+    required this.date,
+    required this.onSave,
+  });
 
   final CalendarEntryType type;
   final DateTime date;
+  final Future<void> Function(CalendarEntry entry) onSave;
 
   @override
   State<_CreateCalendarEntryDialog> createState() =>
@@ -757,6 +765,14 @@ class _CreateCalendarEntryDialog extends StatefulWidget {
 
 class _CreateCalendarEntryDialogState
     extends State<_CreateCalendarEntryDialog> {
+  static const _bookingLocations = [
+    'Court 1',
+    'Court 2',
+    'Court 3',
+    'Main gym',
+    'Multi-purpose room',
+  ];
+
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
@@ -764,6 +780,29 @@ class _CreateCalendarEntryDialogState
   TimeOfDay _startTime = const TimeOfDay(hour: 13, minute: 0);
   TimeOfDay _endTime = const TimeOfDay(hour: 14, minute: 0);
   String? _formError;
+  String _bookingLocation = _bookingLocations.first;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    if (_sameDay(widget.date, now)) {
+      final suggestedStart = now.add(const Duration(minutes: 30));
+      if (_sameDay(widget.date, suggestedStart)) {
+        _startTime = TimeOfDay.fromDateTime(suggestedStart);
+        final suggestedEnd = suggestedStart.add(const Duration(hours: 1));
+        if (_sameDay(widget.date, suggestedEnd)) {
+          _endTime = TimeOfDay.fromDateTime(suggestedEnd);
+        } else {
+          _formError = 'This date has less than one hour remaining. Choose another date.';
+        }
+      } else {
+        _formError =
+            'This date has less than one hour remaining. Choose another date.';
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -797,7 +836,7 @@ class _CreateCalendarEntryDialogState
     time.minute,
   );
 
-  void _submit() {
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     final startsAt = _atTime(_startTime);
     final endsAt = _atTime(_endTime);
@@ -810,18 +849,38 @@ class _CreateCalendarEntryDialogState
       return;
     }
 
-    Navigator.pop(
-      context,
-      CalendarEntry(
-        id: DateTime.now().microsecondsSinceEpoch.toString(),
-        title: _titleController.text.trim(),
-        description: _descriptionController.text.trim(),
-        location: _locationController.text.trim(),
-        type: widget.type,
-        startsAt: startsAt,
-        endsAt: endsAt,
-      ),
+    final entry = CalendarEntry(
+      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      title: _titleController.text.trim(),
+      description: _descriptionController.text.trim(),
+      location: widget.type == CalendarEntryType.booking
+          ? _bookingLocation
+          : _locationController.text.trim(),
+      type: widget.type,
+      startsAt: startsAt,
+      endsAt: endsAt,
     );
+
+    setState(() {
+      _isSaving = true;
+      _formError = null;
+    });
+    try {
+      await widget.onSave(entry);
+      if (mounted) Navigator.pop(context, true);
+    } on CalendarValidationException catch (error) {
+      if (mounted) setState(() => _formError = error.message);
+    } on CalendarConflictException catch (error) {
+      if (mounted) setState(() => _formError = error.message);
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => _formError = 'Could not save this entry. Please try again.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
 
   @override
@@ -856,19 +915,38 @@ class _CreateCalendarEntryDialogState
                     : null,
               ),
               const SizedBox(height: 10),
-              TextFormField(
-                controller: _locationController,
-                textCapitalization: TextCapitalization.words,
-                decoration: InputDecoration(
-                  labelText: widget.type == CalendarEntryType.booking
-                      ? 'Court, room, or facility'
-                      : 'Location',
-                  border: const OutlineInputBorder(),
+              if (widget.type == CalendarEntryType.booking)
+                DropdownButtonFormField<String>(
+                  initialValue: _bookingLocation,
+                  decoration: const InputDecoration(
+                    labelText: 'Court, room, or facility',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: [
+                    for (final location in _bookingLocations)
+                      DropdownMenuItem(value: location, child: Text(location)),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() {
+                        _bookingLocation = value;
+                        _formError = null;
+                      });
+                    }
+                  },
+                )
+              else
+                TextFormField(
+                  controller: _locationController,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(
+                    labelText: 'Location',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) => value == null || value.trim().isEmpty
+                      ? 'Enter a location.'
+                      : null,
                 ),
-                validator: (value) => value == null || value.trim().isEmpty
-                    ? 'Enter a location.'
-                    : null,
-              ),
               const SizedBox(height: 10),
               TextFormField(
                 controller: _descriptionController,
@@ -928,10 +1006,18 @@ class _CreateCalendarEntryDialogState
     ),
     actions: [
       TextButton(
-        onPressed: () => Navigator.pop(context),
+        onPressed: _isSaving ? null : () => Navigator.pop(context),
         child: const Text('Cancel'),
       ),
-      FilledButton(onPressed: _submit, child: const Text('Add to calendar')),
+      FilledButton(
+        onPressed: _isSaving ? null : _submit,
+        child: _isSaving
+            ? const SizedBox.square(
+                dimension: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Text('Add to calendar'),
+      ),
     ],
   );
 }

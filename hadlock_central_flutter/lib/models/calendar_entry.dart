@@ -25,8 +25,8 @@ class CalendarEntry {
     description: json['description'] as String? ?? '',
     location: json['location'] as String,
     type: CalendarEntryType.values.byName(json['type'] as String),
-    startsAt: DateTime.parse(json['startsAt'] as String),
-    endsAt: DateTime.parse(json['endsAt'] as String),
+    startsAt: DateTime.parse(json['startsAt'] as String).toLocal(),
+    endsAt: DateTime.parse(json['endsAt'] as String).toLocal(),
   );
 
   Map<String, Object?> toJson() => {
