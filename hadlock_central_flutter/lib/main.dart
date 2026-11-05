@@ -6,6 +6,7 @@ import 'package:hadlock_central_flutter/pages/announcements.dart';
 import 'package:hadlock_central_flutter/pages/schedule_page.dart';
 import 'package:hadlock_central_flutter/pages/equipment_page.dart';
 import 'package:hadlock_central_flutter/pages/home_page.dart';
+import 'package:hadlock_central_flutter/pages/sign_in_page.dart';
 
 void main() => runApp(const HadlockCentralApp());
 
@@ -43,7 +44,7 @@ class HadlockCentralApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const AppShell(),
+      home: const SignInPage(),
     );
   }
 }
