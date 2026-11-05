@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hadlock_central_flutter/data/announcement_repository.dart';
 import 'package:hadlock_central_flutter/models/announcement.dart';
-import 'package:hadlock_central_flutter/pages/main.dart';
+import 'package:hadlock_central_flutter/main.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key, 
