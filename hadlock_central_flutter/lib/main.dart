@@ -8,6 +8,8 @@ import 'package:hadlock_central_flutter/pages/equipment_page.dart';
 import 'package:hadlock_central_flutter/pages/home_page.dart';
 import 'package:hadlock_central_flutter/pages/sign_in_page.dart';
 
+//Run with this command in terminal: flutter run -d chrome --web-port=58173
+
 void main() => runApp(const HadlockCentralApp());
 
 const _destinations = <Destination>[

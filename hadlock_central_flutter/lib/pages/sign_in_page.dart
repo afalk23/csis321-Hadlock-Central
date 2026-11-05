@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:hadlock_central_flutter/pages/form_text_field.dart';
+import 'package:hadlock_central_flutter/pages/register_page.dart';
+import 'package:hadlock_central_flutter/widgets/form_text_field.dart';
 import 'package:hadlock_central_flutter/main.dart';
 import 'package:hadlock_central_flutter/functions/post_data_function.dart';
 
@@ -76,7 +77,7 @@ class SignInPageState extends State<SignInPage> {
               Navigator.of(context).pop();
               Navigator.of(
                 context,
-              ).push(MaterialPageRoute(builder: (context) => const AppShell()));
+              ).push(MaterialPageRoute(builder: (context) => const RegisterPage()));
             },
             child: const Text('Create Account'),
           ),
