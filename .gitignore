@@ -1,0 +1,8 @@
+# Flutter app lives under hadlock_central_flutter/. These root-level paths are
+# generated scaffolding/artifacts from commands run at the repository root.
+/.dart_tool/
+/build/
+/android/
+/ios/
+/macos/
+/.DS_Store

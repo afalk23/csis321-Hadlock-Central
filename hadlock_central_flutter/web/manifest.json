@@ -1,6 +1,6 @@
 {
-    "name": "hadlaock_central_flutter",
-    "short_name": "hadlaock_central_flutter",
+    "name": "hadlock_central_flutter",
+    "short_name": "hadlock_central_flutter",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
