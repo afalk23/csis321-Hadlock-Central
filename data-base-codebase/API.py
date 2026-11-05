@@ -7,6 +7,7 @@ import json
 
 app = Flask('Hadlock Central')
 
+## set up the CORS and app for running and testing
 CORS(app, resources=
     {
         r"/login":
@@ -17,20 +18,9 @@ CORS(app, resources=
 
 app.config["MONGO_URI"] = os.environ["MONGO_URI"]
 
-##app.config['MONGO_URI'] = ('mongodb+srv://hadlockcentral_db_user:'
-##                           '<Hadlock_Central>@hadlockcentral.mlnhddf.'
-##                           'mongodb.net/HadlockCentralDB?retryWrites=true&w=majority')
-
 mongo = PyMongo(app)
 
-##try:
-##    with app.app_context():
-##        mongo.db.command("ping")
-##        print("MongoDB connected successfully!")
-
-##except Exception as e:
-##    print("MongoDB connection failed:", type(e).__name__)
-
+## A route for the login feature in the app
 @app.route('/login', methods=['POST'])
 def login():
     if mongo.db.Users.find_one({'email': request.json['email'], 'password': request.json['password']}):
@@ -39,6 +29,7 @@ def login():
     else:
         return {'message': 'Login failed. Incorrect email or password.', 'success': False}
 
+## A route for the register feature in the app
 @app.route('/register', methods=['POST'])
 def register():
     if mongo.db.Users.find_one({'email': request.json['email']}):
