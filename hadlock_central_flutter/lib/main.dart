@@ -10,8 +10,10 @@ import 'package:hadlock_central_flutter/pages/sign_in_page.dart';
 
 //Run with this command in terminal: flutter run -d chrome --web-port=58173
 
+/// The main function is the entry point of the application. It runs the HadlockCentralApp widget.
 void main() => runApp(const HadlockCentralApp());
 
+/// Destination class represents a navigation destination with a label and an icon.
 const _destinations = <Destination>[
   Destination('Home', Icons.home_outlined),
   Destination('Schedule', Icons.calendar_month_outlined),
@@ -19,15 +21,19 @@ const _destinations = <Destination>[
   Destination('Announcements', Icons.mail_outline),
 ];
 
+/// HadlockCentralApp is a StatelessWidget that sets up the MaterialApp with theme and home page.
 class HadlockCentralApp extends StatelessWidget {
   const HadlockCentralApp({super.key});
 
   @override
   Widget build(BuildContext context) {
+    /// The build method constructs the UI for the HadlockCentralApp widget.
     final scheme = ColorScheme.fromSeed(
       seedColor: const Color.fromARGB(255, 43, 53, 239),
       surface: const Color.fromARGB(233, 252, 243, 229),
     );
+
+    /// The MaterialApp widget is the root of the application, setting up theme and home page.
     return MaterialApp(
       title: 'Hadlock Central',
       debugShowCheckedModeBanner: false,
@@ -46,11 +52,14 @@ class HadlockCentralApp extends StatelessWidget {
           ),
         ),
       ),
+
+      /// The home property sets the initial route of the application to the SignInPage.
       home: const SignInPage(),
     );
   }
 }
 
+/// AppShell is a StatefulWidget that manages the main navigation and content of the application.
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
 
@@ -68,6 +77,7 @@ class AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
+    /// The build method constructs the UI for the AppShell widget, managing navigation and content display.
     final wide = MediaQuery.sizeOf(context).width >= 760;
     final page = switch (_selectedIndex) {
       0 => HomePage(
@@ -80,6 +90,8 @@ class AppShellState extends State<AppShell> {
       _ => PlaceholderPage(destination: _destinations[_selectedIndex]),
     };
 
+    /// The Scaffold widget provides the basic visual structure for the AppShell, including navigation and
+    /// content display.
     return Scaffold(
       appBar: wide
           ? null
@@ -87,8 +99,13 @@ class AppShellState extends State<AppShell> {
               title: const Brand(),
               backgroundColor: Theme.of(context).colorScheme.surface,
             ),
+
+      /// The body of the Scaffold contains a Row that arranges the navigation rail and the main content
+      /// area side by side.
       body: Row(
         children: [
+          /// If the screen width is wide enough, a NavigationRail is displayed for navigation between different
+          /// sections of the application.
           if (wide)
             NavigationRail(
               selectedIndex: _selectedIndex,
@@ -106,10 +123,16 @@ class AppShellState extends State<AppShell> {
                   ),
               ],
             ),
+
+          /// The VerticalDivider widget provides a visual separation between the navigation rail and
+          /// the main content area.
           if (wide) const VerticalDivider(width: 1),
           Expanded(child: page),
         ],
       ),
+
+      /// The bottomNavigationBar property provides a navigation bar for smaller screens,
+      /// allowing users to switch between
       bottomNavigationBar: wide
           ? null
           : NavigationBar(
