@@ -16,6 +16,98 @@ class SignInPageState extends State<SignInPage> {
   TextEditingController emailController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
 
+  /// Prevent multiple sign-in requests.
+  bool _isSubmitting = false;
+
+  /// Submits sign-in information to the server.
+  Future<void> _submitSignIn() async {
+    /// Prevent repeated submissions.
+    if (_isSubmitting) {
+      return;
+    }
+
+    /// Check that email and password are not empty.
+    if (emailController.text.trim().isEmpty ||
+        passwordController.text.trim().isEmpty) {
+      await _showMessage('Please enter your email and password.');
+      return;
+    }
+
+    /// Disable the Login button during the request.
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    try {
+      final value = await postData('/login', {
+        'email': emailController.text.trim(),
+        'password': passwordController.text,
+      });
+
+      if (!mounted) return;
+
+      if (value['success'] == true) {
+        /// Sign-in successful.
+        await _showMessage(value['message']?.toString() ?? 'Login successful!');
+
+        if (!mounted) return;
+
+        /// Navigate to the main application.
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const AppShell()),
+        );
+      } else {
+        /// Sign-in failed. Stay on the sign-in page.
+        await _showMessage(
+          value['message']?.toString() ??
+              'Login failed. Please check your credentials.',
+        );
+      }
+    } catch (error) {
+      /// Handle server or connection errors.
+      if (!mounted) return;
+
+      await _showMessage('Unable to sign in. Please try again.');
+    } finally {
+      /// Re-enable the Login button after processing.
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
+    }
+  }
+
+  /// Displays a message to the user.
+  Future<void> _showMessage(String message) async {
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Ok'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// Dispose of the controllers when the widget is removed from the widget tree.
+  @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     /// The build method constructs the UI for the SignInPage.
@@ -32,71 +124,27 @@ class SignInPageState extends State<SignInPage> {
 
           /// The TextButton widget is used to submit the sign-in form.
           TextButton(
-            onPressed: () {
-              /// When the sign-in button is pressed, the postData function is called to send the sign-in data to
-              /// the server.
-              postData('/login', {
-                'email': emailController.text,
-                'password': passwordController.text,
-              }).then(
-                (value) async => {
-                  /// If the sign-in is successful, an AlertDialog is shown with a success message, and the user
-                  /// is navigated to the AppShell.
-                  if (value['success'] == true)
-                    {
-                      showDialog(
-                        context: context,
-                        builder: (BuildContext context) {
-                          return AlertDialog(
-                            title: Text(value['message']),
-                            actions: [
-                              TextButton(
-                                onPressed: () {
-                                  Navigator.of(context).pop();
-                                },
-                                child: const Text('Ok'),
-                              ),
-                            ],
-                          );
-                        },
-                      ).then(
-                        (value) => {
-                          Navigator.of(context).pop(),
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) => const AppShell(),
-                            ),
-                          ),
-                        },
-                      ),
-                    }
-                  /// If the sign-in fails, an AlertDialog is shown with an error message.
-                  else if (value['success'] == false)
-                    {
-                      showDialog(
-                        context: context,
-                        builder: (BuildContext context) {
-                          return AlertDialog(content: Text(value['message']));
-                        },
-                      ),
-                    },
-                },
-              );
-            },
+            /// The onPressed callback is disabled when a submission is in progress to prevent multiple requests.
+            onPressed: _isSubmitting ? null : _submitSignIn,
 
-            /// The child of the TextButton is a Text widget that displays "Login".
-            child: const Text('Login'),
+            /// The child of the button displays a CircularProgressIndicator when submitting, and "Login" text otherwise.
+            child: _isSubmitting
+                ? const CircularProgressIndicator()
+                : const Text('Login'),
           ),
 
           /// The TextButton widget is used to navigate to the RegisterPage for creating a new account.
           TextButton(
-            onPressed: () {
-              /// When the "Create Account" button is pressed, the user is navigated to the RegisterPage.
-              Navigator.of(context).pop();
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => const RegisterPage()),
-              );
-            },
+            /// The onPressed callback is disabled when a submission is in progress to prevent navigation during sign-in.
+            onPressed: _isSubmitting
+                ? null
+                : () {
+                    Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(
+                        builder: (context) => const RegisterPage(),
+                      ),
+                    );
+                  },
 
             /// The child of the TextButton is a Text widget that displays "Create Account".
             child: const Text('Create Account'),
