@@ -10,7 +10,7 @@ The intended architecture is:
 
 ```text
 Flutter app  →  Python/Flask REST API  →  MongoDB
-                                      ↘ notification provider (later)
+                                       ↘ notification provider (later)
 ```
 
 The Flutter app owns presentation and user input. The API should own authorization, business rules, persistence, and integrations such as email. The Flutter app should not connect directly to MongoDB or hold database credentials.
@@ -36,18 +36,6 @@ The Flutter app is in `hadlock_central_flutter/`.
 
 To connect the page to a backend later, add an HTTP implementation of `AnnouncementRepository` that calls the Flask API. Keep the page independent of storage. A likely API shape is `GET /announcements` and staff-authorized `POST /announcements`; settle endpoint names and request/response JSON with the backend contributor before implementing that adapter. The backend should store posts in MongoDB and own notification delivery. Email should be sent only after the API accepts and saves a post.
 
-## Backend and data notes
-
-A Flask/MongoDB login sketch has been shared by the team. It queries `Users` by email and password and returns the matching user document. Treat this as a prototype, not production-ready authentication:
-
-- Never commit a real MongoDB connection string or password. Load secrets from environment configuration and keep them out of Git.
-- Do not store or compare plaintext passwords. Store password hashes and verify them using a suitable password-hashing library.
-- Do not return the raw MongoDB user document from `/login`; it may contain a password hash or internal fields. Return a limited user representation and an authenticated session/token appropriate to the chosen design.
-- Enforce the administrator allowlist and role in the API for every staff-only operation. A client-side email check can improve the form experience but cannot grant authorization.
-- Coordinate the login response/session format with Flutter before wiring up role-specific controls.
-
-The project documents MongoDB collections for users, equipment, and bookings/courts/rooms. Announcements need a persistent schema as the API is implemented. A useful initial record includes an ID, title, body, category, author, creation time, and pinned state. Add fields only as the API and team requirements settle; do not rely on the Flutter-only sample schema as a final database contract.
-
 ## Sprint 4 expectations
 
 
@@ -60,8 +48,8 @@ The project documents MongoDB collections for users, equipment, and bookings/cou
 | Team member | Starting focus from the project plan |
 | --- | --- |
 | Austin Falk | Flutter frontend and UI |
-| Ben Vail | Backend/API |
-| Ana Richardson | Database and QA |
+| Ben Vail | Flutter Front end and UI ~ Backend/API |
+| Ana Richardson | Database and API 
 
 Confirm current ownership with the team before treating this table as a final assignment. GitHub Issues, assignees, labels, branches, and pull requests must be created in the shared repository; this handoff note does not substitute for those collaboration records.
 
@@ -130,7 +118,7 @@ The example products are for interface review only. No real inventory, quantitie
 - The repository-root `android/`, `ios/`, `macos/`, and `.dart_tool/` paths are unrelated generated scaffolding; root `.gitignore` excludes them. The real platform projects are nested under `hadlock_central_flutter/`.
 - Simulator and Android builds validate local execution only. Announcements and calendar data are still in-memory demo data and are not shared across installs until the API/database is deployed.
 
-## Calendar and page review update — November 3, 2026
+## Calendar and page review update
 
 - Booking creation now saves from inside the form. If a location/time conflicts, the form stays open and displays a short inline message instead of closing and showing a large error snackbar.
 - Booking locations use a controlled list (`Court 1`, `Court 2`, `Court 3`, `Main gym`, `Multi-purpose room`) so names match the conflict check. The in-memory repository validates required fields, future start times, positive durations, and overlapping bookings at the same normalized location.
