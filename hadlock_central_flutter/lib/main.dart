@@ -86,6 +86,13 @@ class AppShellState extends State<AppShell> {
           : AppBar(
               title: const Brand(),
               backgroundColor: Theme.of(context).colorScheme.surface,
+              actions: [
+                IconButton(
+                  tooltip: 'Sign out',
+                  onPressed: _signOut,
+                  icon: const Icon(Icons.logout),
+                ),
+              ],
             ),
       body: Row(
         children: [
@@ -98,6 +105,12 @@ class AppShellState extends State<AppShell> {
                 padding: EdgeInsets.fromLTRB(12, 22, 12, 26),
                 child: Brand(vertical: true),
               ),
+              trailing: IconButton(
+                tooltip: 'Sign out',
+                onPressed: _signOut,
+                icon: const Icon(Icons.logout),
+              ),
+              trailingAtBottom: true,
               destinations: [
                 for (final destination in _destinations)
                   NavigationRailDestination(
@@ -127,4 +140,13 @@ class AppShellState extends State<AppShell> {
   }
 
   void select(int index) => setState(() => _selectedIndex = index);
+
+  /// Returns to sign-in and removes the app shell from the navigation stack.
+  void _signOut() {
+    // This prototype has no server session to revoke; clear the app routes only.
+    Navigator.of(context).pushAndRemoveUntil<void>(
+      MaterialPageRoute<void>(builder: (_) => const SignInPage()),
+      (route) => false,
+    );
+  }
 }
