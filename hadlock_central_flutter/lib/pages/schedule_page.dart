@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/calendar_repository.dart';
 import '../models/calendar_entry.dart';
 
+/// SchedulePage is a StatefulWidget that displays a calendar with events and facility bookings.
 class SchedulePage extends StatefulWidget {
   const SchedulePage({super.key, required this.repository});
 
