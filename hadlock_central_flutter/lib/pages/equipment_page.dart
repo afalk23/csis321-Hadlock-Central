@@ -2,14 +2,22 @@ import 'package:flutter/material.dart';
 
 import '../data/equipment_repository.dart';
 import '../models/equipment_item.dart';
+import '../models/equipment_reservation.dart';
+import '../models/student_account.dart';
+import 'equipment_reservation_dialog.dart';
 
-/// EquipmentPage is a StatefulWidget that displays a list of equipment items, allowing users to search and filter
-/// by category. It fetches data from the provided EquipmentRepository and displays it in a responsive layout with 
-/// cards for each item. Users can view details of each item in a dialog.
+/// Browse and search equipment from the supplied repository.
 class EquipmentPage extends StatefulWidget {
-  const EquipmentPage({super.key, required this.repository});
+  const EquipmentPage({
+    super.key,
+    required this.repository,
+    required this.account,
+    required this.onOpenSchedule,
+  });
 
   final EquipmentRepository repository;
+  final StudentAccount account;
+  final VoidCallback onOpenSchedule;
 
   @override
   State<EquipmentPage> createState() => _EquipmentPageState();
@@ -30,6 +38,7 @@ class _EquipmentPageState extends State<EquipmentPage> {
   @override
   void didUpdateWidget(covariant EquipmentPage oldWidget) {
     super.didUpdateWidget(oldWidget);
+    // Reload when the app switches from sample data to another repository.
     if (oldWidget.repository != widget.repository) {
       _itemsFuture = widget.repository.getItems();
     }
@@ -47,12 +56,43 @@ class _EquipmentPageState extends State<EquipmentPage> {
 
   void _reload() => setState(() => _itemsFuture = widget.repository.getItems());
 
+  Future<void> _reserve(EquipmentItem item) async {
+    final reservation = await showDialog<EquipmentReservation>(
+      context: context,
+      builder: (context) => EquipmentReservationDialog(
+        item: item,
+        account: widget.account,
+        repository: widget.repository,
+      ),
+    );
+    if (!mounted || reservation == null) return;
+    // Personal reservations appear only on the signed-in student's calendar.
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Equipment reserved'),
+        content: const Text(
+          'Come to the front desk for your reservation. You can find it on your calendar.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              widget.onOpenSchedule();
+            },
+            child: const Text('View calendar'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    /// The build method constructs the UI for the EquipmentPage, including a search bar, category filters, and a 
-    /// list of equipment items. It uses a FutureBuilder to handle asynchronous data fetching and displays appropriate 
-    /// messages for loading, errors, or empty results. The layout adapts to different screen sizes, providing a 
-    /// responsive user experience.
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 680;
@@ -67,8 +107,6 @@ class _EquipmentPageState extends State<EquipmentPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  /// The following Text widgets display the title and subtitle of the EquipmentPage, 
-                  /// providing context to the user.
                   Text(
                     'Equipment',
                     style: Theme.of(context).textTheme.headlineMedium,
@@ -89,7 +127,7 @@ class _EquipmentPageState extends State<EquipmentPage> {
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: const Text(
-                      'Sample catalog · Items shown here are examples. Live inventory and checkout are not connected yet.',
+                      'Sample inventory · Reservations are a local demo and are cleared when the app restarts.',
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -157,6 +195,7 @@ class _EquipmentPageState extends State<EquipmentPage> {
                         );
                       }
                       final query = _searchController.text.trim().toLowerCase();
+                      // Apply category and text filters to the same loaded catalog.
                       final items =
                           (snapshot.data ?? const <EquipmentItem>[])
                               .where(
@@ -231,8 +270,6 @@ class _EquipmentPageState extends State<EquipmentPage> {
     );
   }
 
-  /// _showDetails displays a dialog with detailed information about a selected equipment item, including its name,
-  /// category, description, and a note about availability and checkout details.
   void _showDetails(EquipmentItem item) {
     showDialog<void>(
       context: context,
@@ -249,9 +286,10 @@ class _EquipmentPageState extends State<EquipmentPage> {
             const SizedBox(height: 12),
             Text(item.description),
             const SizedBox(height: 18),
-            Text(
-              'Availability and checkout details will appear when the inventory service is connected.',
-              style: Theme.of(context).textTheme.bodySmall,
+            Text('Sample quantity: ${item.quantity}'),
+            const SizedBox(height: 8),
+            const Text(
+              'Choose a time to check availability and reserve this item.',
             ),
           ],
         ),
@@ -260,14 +298,20 @@ class _EquipmentPageState extends State<EquipmentPage> {
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('Close'),
           ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _reserve(item);
+            },
+            child: const Text('Check availability'),
+          ),
         ],
       ),
     );
   }
 }
 
-/// _EquipmentCard is a stateless widget that represents a card displaying an equipment item's details, including
-/// its category, name, and description. It also provides an onTap callback for user interaction.
+/// Catalog card that opens the selected item's details.
 class _EquipmentCard extends StatelessWidget {
   const _EquipmentCard({required this.item, required this.onTap});
 
@@ -319,7 +363,6 @@ class _EquipmentCard extends StatelessWidget {
   );
 }
 
-/// _iconFor returns an appropriate icon for a given EquipmentCategory, used for visual representation in the UI.
 IconData _iconFor(EquipmentCategory category) => switch (category) {
   EquipmentCategory.transportation => Icons.directions_bike_outlined,
   EquipmentCategory.gamesAndActivities => Icons.sports_basketball_outlined,

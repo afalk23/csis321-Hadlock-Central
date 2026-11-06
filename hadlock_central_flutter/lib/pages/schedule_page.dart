@@ -2,12 +2,22 @@ import 'package:flutter/material.dart';
 
 import '../data/calendar_repository.dart';
 import '../models/calendar_entry.dart';
+import '../data/equipment_repository.dart';
+import '../models/equipment_reservation.dart';
+import '../models/student_account.dart';
 
 /// SchedulePage is a StatefulWidget that displays a calendar with events and facility bookings.
 class SchedulePage extends StatefulWidget {
-  const SchedulePage({super.key, required this.repository});
+  const SchedulePage({
+    super.key,
+    required this.repository,
+    required this.equipmentRepository,
+    required this.account,
+  });
 
   final CalendarRepository repository;
+  final EquipmentRepository equipmentRepository;
+  final StudentAccount account;
 
   @override
   State<SchedulePage> createState() => _SchedulePageState();
@@ -22,11 +32,13 @@ class _SchedulePageState extends State<SchedulePage> {
   );
   bool _staffPreview = false;
   late Future<List<CalendarEntry>> _entriesFuture;
+  List<EquipmentReservation> _personalReservations = [];
 
   @override
   void initState() {
     super.initState();
     _entriesFuture = widget.repository.getEntries();
+    _loadPersonalReservations();
   }
 
   @override
@@ -35,9 +47,22 @@ class _SchedulePageState extends State<SchedulePage> {
     if (oldWidget.repository != widget.repository) {
       _entriesFuture = widget.repository.getEntries();
     }
+    if (oldWidget.equipmentRepository != widget.equipmentRepository ||
+        oldWidget.account.id != widget.account.id) {
+      _loadPersonalReservations();
+    }
+  }
+
+  Future<void> _loadPersonalReservations() async {
+    // Equipment reservations stay separate from the shared facility calendar.
+    final reservations = await widget.equipmentRepository.reservationsFor(
+      widget.account.id,
+    );
+    if (mounted) setState(() => _personalReservations = reservations);
   }
 
   void _reload() {
+    _loadPersonalReservations();
     setState(() {
       _entriesFuture = widget.repository.getEntries();
     });
@@ -232,6 +257,16 @@ class _SchedulePageState extends State<SchedulePage> {
                         ),
                       ],
                       const SizedBox(height: 20),
+                      _PersonalEquipmentAgenda(
+                        date: _selectedDate,
+                        reservations: _personalReservations
+                            .where(
+                              (entry) =>
+                                  _sameDay(entry.startsAt, _selectedDate),
+                            )
+                            .toList(),
+                      ),
+                      const SizedBox(height: 20),
                       const _CalendarLegend(),
                     ],
                   ),
@@ -341,6 +376,9 @@ class _SchedulePageState extends State<SchedulePage> {
       child: _CalendarDayCell(
         date: date,
         entries: _entriesForDate(entries, date),
+        hasEquipment: _personalReservations.any(
+          (entry) => _sameDay(entry.startsAt, date),
+        ),
         isInMonth: true,
         isSelected: _sameDay(date, _selectedDate),
         isToday: _sameDay(date, DateTime.now()),
@@ -457,6 +495,7 @@ class _CalendarDayCell extends StatelessWidget {
   const _CalendarDayCell({
     required this.date,
     required this.entries,
+    required this.hasEquipment,
     required this.isInMonth,
     required this.isSelected,
     required this.isToday,
@@ -465,6 +504,7 @@ class _CalendarDayCell extends StatelessWidget {
 
   final DateTime date;
   final List<CalendarEntry> entries;
+  final bool hasEquipment;
   final bool isInMonth;
   final bool isSelected;
   final bool isToday;
@@ -520,6 +560,15 @@ class _CalendarDayCell extends StatelessWidget {
                           color: _entryColor(context, entry.type),
                         ),
                       ),
+                    if (hasEquipment)
+                      Container(
+                        width: 5,
+                        height: 5,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.deepOrange,
+                        ),
+                      ),
                   ],
                 ),
                 const Spacer(),
@@ -530,6 +579,48 @@ class _CalendarDayCell extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Shows only reservations belonging to the signed-in student.
+class _PersonalEquipmentAgenda extends StatelessWidget {
+  const _PersonalEquipmentAgenda({
+    required this.date,
+    required this.reservations,
+  });
+
+  final DateTime date;
+  final List<EquipmentReservation> reservations;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'My equipment · ${MaterialLocalizations.of(context).formatMediumDate(date)}',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          if (reservations.isEmpty)
+            const Text('No equipment reservations for this day.'),
+          for (final reservation in reservations)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(
+                Icons.backpack_outlined,
+                color: Colors.deepOrange,
+              ),
+              title: Text(reservation.itemName),
+              subtitle: Text(
+                '${TimeOfDay.fromDateTime(reservation.startsAt).format(context)}–${TimeOfDay.fromDateTime(reservation.endsAt).format(context)} · Pick up at the front desk',
+              ),
+            ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _DayAgenda extends StatelessWidget {
@@ -716,10 +807,20 @@ class _CalendarLegend extends StatelessWidget {
     children: [
       _LegendItem(type: CalendarEntryType.event),
       _LegendItem(type: CalendarEntryType.booking),
-      Text(
-        'Personal equipment rentals belong in My Rentals.',
-        style: Theme.of(context).textTheme.bodySmall
-            ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+      Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 9,
+            height: 9,
+            decoration: const BoxDecoration(
+              color: Colors.deepOrange,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 7),
+          Text('My equipment', style: Theme.of(context).textTheme.bodySmall),
+        ],
       ),
     ],
   );
