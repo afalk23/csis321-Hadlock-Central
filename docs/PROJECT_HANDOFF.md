@@ -109,6 +109,12 @@ The Equipment navigation destination now opens a responsive catalog page instead
 
 The example products are for interface review only. No real inventory, quantities, availability, checkout, or rental history is connected. Replace the sample repository with an API implementation when the backend inventory contract is agreed, and keep server-side availability and checkout rules authoritative.
 
+## Equipment reservation demo — November 5, 2026
+
+The Equipment page now lets a signed-in student choose an item and future time window, see remaining sample units, and reserve one. The form displays the account's first name, last name, and email, and asks for a student ID at reservation time. Registration does not collect student ID. The local reservation stores the entered ID and is associated with the account ID returned at sign-in. Successful reservations show a front-desk pickup confirmation and appear in a personal equipment section of that student's Schedule calendar, with a separate date indicator. They are never added to the shared facility calendar.
+
+This is still local demo state. Sample inventory uses two units per item, with overlapping time windows reducing availability. Reservations disappear when the app restarts and are not shared across devices. The Flask login response now returns a limited profile rather than the raw user document, but the existing login backend still lacks a secure session and currently compares plaintext passwords. Before production use, the API must hash passwords, authenticate requests, persist inventory and reservations, enforce student ownership and atomic quantity checks, and provide an authenticated equipment contract. The student ID entered for a reservation is not independently verified.
+
 ## Platform setup findings — November 3, 2026
 
 - The actual Flutter package root is `hadlock_central_flutter/`, where `pubspec.yaml`, `lib/main.dart`, and the Android/iOS projects live. Open this folder in Android Studio or VS Code. The repository root has no Flutter `pubspec.yaml`.

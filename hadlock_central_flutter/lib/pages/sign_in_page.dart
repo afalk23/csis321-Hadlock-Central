@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hadlock_central_flutter/pages/register_page.dart';
 import 'package:hadlock_central_flutter/widgets/form_text_field.dart';
 import 'package:hadlock_central_flutter/main.dart';
+import 'package:hadlock_central_flutter/models/student_account.dart';
 import 'package:hadlock_central_flutter/functions/post_data_function.dart';
 
 /// SignInPage is a StatefulWidget that allows users to sign in to their account.
@@ -47,6 +48,13 @@ class SignInPageState extends State<SignInPage> {
       if (!mounted) return;
 
       if (value['success'] == true) {
+        final user = value['user'];
+        if (user is! Map<String, dynamic>) {
+          await _showMessage('Your account details could not be loaded.');
+          return;
+        }
+        final account = StudentAccount.fromJson(user);
+
         /// Sign-in successful.
         await _showMessage(value['message']?.toString() ?? 'Login successful!');
 
@@ -54,7 +62,7 @@ class SignInPageState extends State<SignInPage> {
 
         /// Navigate to the main application.
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const AppShell()),
+          MaterialPageRoute(builder: (context) => AppShell(account: account)),
         );
       } else {
         /// Sign-in failed. Stay on the sign-in page.

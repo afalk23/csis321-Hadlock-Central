@@ -7,6 +7,7 @@ import 'package:hadlock_central_flutter/pages/schedule_page.dart';
 import 'package:hadlock_central_flutter/pages/equipment_page.dart';
 import 'package:hadlock_central_flutter/pages/home_page.dart';
 import 'package:hadlock_central_flutter/pages/sign_in_page.dart';
+import 'package:hadlock_central_flutter/models/student_account.dart';
 
 //Run with this command in terminal: flutter run -d chrome --web-port=58173
 
@@ -53,7 +54,7 @@ class HadlockCentralApp extends StatelessWidget {
         ),
       ),
 
-      /// The home property sets the initial route of the application to the SignInPage.
+      /// Start at sign-in before opening the app shell.
       home: const SignInPage(),
     );
   }
@@ -61,7 +62,9 @@ class HadlockCentralApp extends StatelessWidget {
 
 /// AppShell is a StatefulWidget that manages the main navigation and content of the application.
 class AppShell extends StatefulWidget {
-  const AppShell({super.key});
+  const AppShell({super.key, required this.account});
+
+  final StudentAccount account;
 
   @override
   State<AppShell> createState() => AppShellState();
@@ -84,8 +87,16 @@ class AppShellState extends State<AppShell> {
         announcementRepository: _announcementRepository,
         onOpenAnnouncements: () => select(3),
       ),
-      1 => SchedulePage(repository: _calendarRepository),
-      2 => EquipmentPage(repository: _equipmentRepository),
+      1 => SchedulePage(
+        repository: _calendarRepository,
+        equipmentRepository: _equipmentRepository,
+        account: widget.account,
+      ),
+      2 => EquipmentPage(
+        repository: _equipmentRepository,
+        account: widget.account,
+        onOpenSchedule: () => select(1),
+      ),
       3 => AnnouncementsPage(repository: _announcementRepository),
       _ => PlaceholderPage(destination: _destinations[_selectedIndex]),
     };

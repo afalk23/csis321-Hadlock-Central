@@ -30,7 +30,14 @@ def login():
     
     if mongo.db.Users.find_one({'email': request.json['email'], 'password': request.json['password']}):
         user = mongo.db.Users.find_one({'email': request.json['email'], 'password': request.json['password']})
-        message = {'message': 'Login Successful', 'success': True, 'user': user}
+        # Return only profile fields needed by the app; never return a password.
+        profile = {
+            'id': str(user['_id']),
+            'email': user.get('email', ''),
+            'firstName': user.get('firstName', ''),
+            'lastName': user.get('lastName', ''),
+        }
+        message = {'message': 'Login Successful', 'success': True, 'user': profile}
     else:
         message = {'message': 'Login failed. Incorrect email or password.', 'success': False}
 
