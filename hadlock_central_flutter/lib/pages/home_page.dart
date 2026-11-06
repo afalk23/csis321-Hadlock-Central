@@ -3,6 +3,10 @@ import 'package:hadlock_central_flutter/data/announcement_repository.dart';
 import 'package:hadlock_central_flutter/models/announcement.dart';
 import 'package:hadlock_central_flutter/main.dart';
 
+/// HomePage is a StatelessWidget that serves as the main landing page of the application. 
+/// It displays a welcome message, quick access links, and the latest announcements and events. 
+/// It uses the provided AnnouncementRepository to fetch and display announcements, and it provides a callback 
+/// for navigating to the full announcements page.
 class HomePage extends StatelessWidget {
   const HomePage({super.key, 
     required this.announcementRepository,
@@ -82,6 +86,8 @@ class HomePage extends StatelessWidget {
   }
 }
 
+/// FacilityCard is a StatelessWidget that displays information about the facility, including its hours and 
+/// current availability.
 class FacilityCard extends StatelessWidget {
   const FacilityCard({super.key, required this.compact});
   final bool compact;
@@ -124,6 +130,7 @@ class FacilityCard extends StatelessWidget {
   }
 }
 
+/// QuickLink represents a quick access link with a title, subtitle, icon, and destination index for navigation.
 class QuickLink {
   const QuickLink(this.title, this.subtitle, this.icon, this.destinationIndex);
   final String title;
@@ -178,6 +185,7 @@ class QuickLinks extends StatelessWidget {
   }
 }
 
+/// _QuickLinkCard is a StatelessWidget that represents a card for a quick access link.
 class _QuickLinkCard extends StatelessWidget {
   const _QuickLinkCard({required this.link});
   final QuickLink link;
@@ -225,6 +233,8 @@ class _QuickLinkCard extends StatelessWidget {
   }
 }
 
+/// _AnnouncementCard is a StatefulWidget that displays the latest announcement from the provided 
+/// AnnouncementRepository.
 class _AnnouncementCard extends StatefulWidget {
   const _AnnouncementCard({
     required this.repository,
@@ -323,6 +333,8 @@ class _AnnouncementCardState extends State<_AnnouncementCard> {
   );
 }
 
+/// _EventCard is a StatelessWidget that displays information about upcoming events, including a message
+/// indicating that the center calendar is not yet connected.
 class _EventCard extends StatelessWidget {
   const _EventCard();
   @override
@@ -334,6 +346,7 @@ class _EventCard extends StatelessWidget {
   );
 }
 
+/// _InfoCard is a StatelessWidget that displays an informational card with an icon, title, detail, and tag.
 class _InfoCard extends StatelessWidget {
   const _InfoCard({
     required this.icon,
@@ -375,6 +388,8 @@ class _InfoCard extends StatelessWidget {
   );
 }
 
+/// PlaceholderPage is a StatelessWidget that serves as a placeholder for sections of the application 
+/// that are not yet implemented.
 class PlaceholderPage extends StatelessWidget {
   const PlaceholderPage({super.key, required this.destination});
   final Destination destination;
@@ -411,6 +426,7 @@ class PlaceholderPage extends StatelessWidget {
   );
 }
 
+/// Brand is a StatelessWidget that displays the branding for Hadlock Central, including an icon and text.
 class Brand extends StatelessWidget {
   const Brand({super.key, this.vertical = false});
   final bool vertical;
@@ -445,6 +461,8 @@ class Brand extends StatelessWidget {
   }
 }
 
+/// _DemoLabel is a StatelessWidget that displays a label indicating that the application is running in a 
+/// local demo mode.
 class _DemoLabel extends StatelessWidget {
   const _DemoLabel();
   @override
@@ -452,6 +470,8 @@ class _DemoLabel extends StatelessWidget {
       const _StatusPill(label: 'LOCAL DEMO • SAMPLE CONTENT');
 }
 
+/// _StatusPill is a StatelessWidget that displays a pill-shaped label with optional icon, used for status 
+/// indicators or tags.
 class _StatusPill extends StatelessWidget {
   const _StatusPill({required this.label, this.icon});
   final String label;
@@ -474,6 +494,7 @@ class _StatusPill extends StatelessWidget {
   );
 }
 
+/// Destination represents a navigation destination with a label and an icon, used for navigation rail or menu items.
 class Destination {
   const Destination(this.label, this.icon);
   final String label;

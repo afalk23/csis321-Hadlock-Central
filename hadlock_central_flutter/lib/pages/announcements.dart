@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../data/announcement_repository.dart';
 import '../models/announcement.dart';
 
+/// AnnouncementsPage is a StatefulWidget that displays a list of announcements and allows users to filter, search, 
+/// and compose new announcements.
 class AnnouncementsPage extends StatefulWidget {
   const AnnouncementsPage({super.key, required this.repository});
 
@@ -12,11 +14,15 @@ class AnnouncementsPage extends StatefulWidget {
   State<AnnouncementsPage> createState() => _AnnouncementsPageState();
 }
 
+/// _AnnouncementsPageState manages the state of the AnnouncementsPage, including filtering, searching, and 
+/// composing announcements.
 class _AnnouncementsPageState extends State<AnnouncementsPage> {
   final _searchController = TextEditingController();
   AnnouncementCategory? _selectedCategory;
   late Future<List<Announcement>> _announcementsFuture;
 
+  /// The initState method initializes the state of the AnnouncementsPage, including loading announcements and 
+  /// setting up the search controller listener.
   @override
   void initState() {
     super.initState();
@@ -24,6 +30,8 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
     _searchController.addListener(_refresh);
   }
 
+  /// The didUpdateWidget method is called when the widget is updated, allowing the state to respond to changes 
+  /// in the widget.
   @override
   void didUpdateWidget(covariant AnnouncementsPage oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -32,6 +40,8 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
     }
   }
 
+  /// The dispose method cleans up resources when the AnnouncementsPage is removed from the widget tree, including
+  /// removing the search controller listener and disposing of the controller.
   @override
   void dispose() {
     _searchController
@@ -40,16 +50,19 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
     super.dispose();
   }
 
+  /// The _refresh method triggers a rebuild of the widget tree when the search controller's text changes.
   void _refresh() {
     if (mounted) setState(() {});
   }
 
+  /// The _loadAnnouncements method reloads the announcements from the repository and updates the state.
   void _loadAnnouncements() {
     setState(() {
       _announcementsFuture = widget.repository.getAnnouncements();
     });
   }
 
+  /// The _composeAnnouncement method opens a dialog for composing a new announcement and handles the publishing.
   Future<void> _composeAnnouncement() async {
     final published = await showDialog<bool>(
       context: context,
@@ -66,10 +79,13 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
     );
   }
 
+  /// The build method constructs the UI for the AnnouncementsPage, including search, filtering, and displaying 
+  /// announcements.
   @override
   Widget build(BuildContext context) {
     final compact = MediaQuery.sizeOf(context).width < 680;
     return LayoutBuilder(
+      /// The LayoutBuilder widget allows the UI to adapt to different screen sizes, providing a responsive layout.
       builder: (context, constraints) => SingleChildScrollView(
         padding: EdgeInsets.symmetric(
           horizontal: compact ? 20 : 40,
@@ -168,6 +184,7 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
     );
   }
 
+  /// The _filterAnnouncements method filters the list of announcements based on the selected category and search query.
   List<Announcement> _filterAnnouncements(List<Announcement> all) {
     final query = _searchController.text.trim().toLowerCase();
     final filtered = all.where((announcement) {
@@ -188,6 +205,7 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
     return filtered;
   }
 
+  /// The _showAnnouncement method displays a dialog with the details of the selected announcement.
   void _showAnnouncement(Announcement announcement) {
     showDialog<void>(
       context: context,
@@ -197,6 +215,8 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
   }
 }
 
+/// The _PageHeader widget displays the header section of the AnnouncementsPage, including the title, description, 
+/// and a button to create a new announcement.
 class _PageHeader extends StatelessWidget {
   const _PageHeader({required this.onCompose, required this.compact});
 
@@ -240,6 +260,8 @@ class _PageHeader extends StatelessWidget {
   }
 }
 
+/// _DemoNotice is a widget that displays a notice indicating that the app is in demo mode, and 
+/// announcements are sample content.
 class _DemoNotice extends StatelessWidget {
   const _DemoNotice();
 
@@ -267,6 +289,7 @@ class _DemoNotice extends StatelessWidget {
   );
 }
 
+/// _CategoryFilters is a widget that displays a horizontal list of filter chips for selecting announcement categories.
 class _CategoryFilters extends StatelessWidget {
   const _CategoryFilters({required this.selected, required this.onSelected});
 
@@ -296,6 +319,7 @@ class _CategoryFilters extends StatelessWidget {
   }
 }
 
+/// _FilterChip is a widget that represents a single filter chip for selecting an announcement category.
 class _FilterChip extends StatelessWidget {
   const _FilterChip({
     required this.label,
@@ -324,6 +348,8 @@ class _FilterChip extends StatelessWidget {
   );
 }
 
+/// _AnnouncementCard is a widget that displays a card representing an announcement, including its title, body, 
+/// and metadata.
 class _AnnouncementCard extends StatelessWidget {
   const _AnnouncementCard({required this.announcement, required this.onTap});
 
@@ -408,6 +434,8 @@ class _AnnouncementCard extends StatelessWidget {
   }
 }
 
+/// _Tag is a widget that displays a small tag with a label, optional color, and optional icon, used for 
+/// categorizing announcements.
 class _Tag extends StatelessWidget {
   const _Tag({required this.label, this.color, this.icon});
 
@@ -442,6 +470,8 @@ class _Tag extends StatelessWidget {
   }
 }
 
+/// _AnnouncementDetailsDialog is a dialog that displays the details of a selected announcement, including its title,
+/// body, and metadata.
 class _AnnouncementDetailsDialog extends StatelessWidget {
   const _AnnouncementDetailsDialog({required this.announcement});
 
@@ -499,6 +529,8 @@ class _AnnouncementDetailsDialog extends StatelessWidget {
   );
 }
 
+/// _ComposeAnnouncementDialog is a dialog that allows users to compose and publish a new announcement, including
+/// input fields for title, body, category, audience, and pinning options.
 class _ComposeAnnouncementDialog extends StatefulWidget {
   const _ComposeAnnouncementDialog({required this.onPublish});
 
@@ -687,6 +719,7 @@ class _ComposeAnnouncementDialogState
   );
 }
 
+/// _EmptyAnnouncements is a widget that displays a message indicating that there are no announcements to show.
 class _EmptyAnnouncements extends StatelessWidget {
   const _EmptyAnnouncements();
 
@@ -716,6 +749,7 @@ class _EmptyAnnouncements extends StatelessWidget {
   );
 }
 
+/// _LoadError is a widget that displays an error message and a retry button when announcements fail to load.
 class _LoadError extends StatelessWidget {
   const _LoadError({required this.onRetry});
 
@@ -737,6 +771,8 @@ class _LoadError extends StatelessWidget {
   );
 }
 
+/// _formatDate formats a DateTime object into a human-readable string, indicating whether the date is today, 
+/// yesterday, or a specific date.
 String _formatDate(DateTime date) {
   final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);
@@ -765,6 +801,7 @@ String _formatDate(DateTime date) {
   return '${months[date.month - 1]} ${date.day}, ${date.year}';
 }
 
+/// _categoryColor returns a color associated with a specific announcement category, used for visual distinction.
 Color _categoryColor(BuildContext context, AnnouncementCategory category) =>
     switch (category) {
       AnnouncementCategory.event => const Color(0xFF1D5F91),
@@ -773,6 +810,7 @@ Color _categoryColor(BuildContext context, AnnouncementCategory category) =>
       AnnouncementCategory.alert => const Color(0xFFB24F2D),
     };
 
+/// The following extensions provide human-readable labels for the AnnouncementCategory and AnnouncementAudience enums.
 extension on AnnouncementCategory {
   String get label => switch (this) {
     AnnouncementCategory.event => 'Events',

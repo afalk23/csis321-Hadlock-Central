@@ -1,3 +1,4 @@
+/// This file defines the EquipmentItem model and its associated enum.
 enum EquipmentCategory {
   transportation('Transportation'),
   gamesAndActivities('Games and activities'),
@@ -11,6 +12,8 @@ enum EquipmentCategory {
   final String label;
 }
 
+/// The EquipmentItem class represents an equipment item with various properties such as id, name, category, 
+/// and description.
 class EquipmentItem {
   const EquipmentItem({
     required this.id,

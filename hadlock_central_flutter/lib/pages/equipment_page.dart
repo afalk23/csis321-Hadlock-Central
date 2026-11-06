@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import '../data/equipment_repository.dart';
 import '../models/equipment_item.dart';
 
+/// EquipmentPage is a StatefulWidget that displays a list of equipment items, allowing users to search and filter
+/// by category. It fetches data from the provided EquipmentRepository and displays it in a responsive layout with 
+/// cards for each item. Users can view details of each item in a dialog.
 class EquipmentPage extends StatefulWidget {
   const EquipmentPage({super.key, required this.repository});
 
@@ -46,6 +49,10 @@ class _EquipmentPageState extends State<EquipmentPage> {
 
   @override
   Widget build(BuildContext context) {
+    /// The build method constructs the UI for the EquipmentPage, including a search bar, category filters, and a 
+    /// list of equipment items. It uses a FutureBuilder to handle asynchronous data fetching and displays appropriate 
+    /// messages for loading, errors, or empty results. The layout adapts to different screen sizes, providing a 
+    /// responsive user experience.
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 680;
@@ -60,6 +67,8 @@ class _EquipmentPageState extends State<EquipmentPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  /// The following Text widgets display the title and subtitle of the EquipmentPage, 
+                  /// providing context to the user.
                   Text(
                     'Equipment',
                     style: Theme.of(context).textTheme.headlineMedium,
@@ -222,6 +231,8 @@ class _EquipmentPageState extends State<EquipmentPage> {
     );
   }
 
+  /// _showDetails displays a dialog with detailed information about a selected equipment item, including its name,
+  /// category, description, and a note about availability and checkout details.
   void _showDetails(EquipmentItem item) {
     showDialog<void>(
       context: context,
@@ -255,6 +266,8 @@ class _EquipmentPageState extends State<EquipmentPage> {
   }
 }
 
+/// _EquipmentCard is a stateless widget that represents a card displaying an equipment item's details, including
+/// its category, name, and description. It also provides an onTap callback for user interaction.
 class _EquipmentCard extends StatelessWidget {
   const _EquipmentCard({required this.item, required this.onTap});
 
@@ -306,6 +319,7 @@ class _EquipmentCard extends StatelessWidget {
   );
 }
 
+/// _iconFor returns an appropriate icon for a given EquipmentCategory, used for visual representation in the UI.
 IconData _iconFor(EquipmentCategory category) => switch (category) {
   EquipmentCategory.transportation => Icons.directions_bike_outlined,
   EquipmentCategory.gamesAndActivities => Icons.sports_basketball_outlined,

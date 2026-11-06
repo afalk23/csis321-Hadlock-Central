@@ -1,7 +1,11 @@
+/// This file defines the Announcement model and its associated enums.
 enum AnnouncementCategory { event, facility, program, alert }
 
+/// This enum represents the audience for an announcement.
 enum AnnouncementAudience { everyone, students, staff }
 
+/// The Announcement class represents an announcement with various properties such as title, body, category, 
+/// audience, published date, author, and pin status.
 class Announcement {
   const Announcement({
     required this.id,

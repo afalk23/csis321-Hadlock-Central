@@ -1,5 +1,8 @@
+/// This file defines the CalendarEntry model and its associated enum.
 enum CalendarEntryType { event, booking }
 
+/// The CalendarEntry class represents a calendar entry with various properties such as title, description, location,
+/// type, start time, and end time.
 class CalendarEntry {
   const CalendarEntry({
     required this.id,
@@ -19,6 +22,7 @@ class CalendarEntry {
   final DateTime startsAt;
   final DateTime endsAt;
 
+  /// The fromJson factory constructor creates a CalendarEntry instance from a JSON map.
   factory CalendarEntry.fromJson(Map<String, Object?> json) => CalendarEntry(
     id: json['id'] as String,
     title: json['title'] as String,
@@ -29,6 +33,7 @@ class CalendarEntry {
     endsAt: DateTime.parse(json['endsAt'] as String).toLocal(),
   );
 
+  /// The toJson method converts a CalendarEntry instance into a JSON map.
   Map<String, Object?> toJson() => {
     'id': id,
     'title': title,
