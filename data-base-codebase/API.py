@@ -7,10 +7,14 @@ import json
 
 app = Flask('Hadlock Central')
 
-# set up the CORS and app for running and testing
+# set up the CORS and app for running and testing the routes
 CORS(app, resources=
     {
         r"/login":
+        {
+            "origins": ["http://localhost:58173"]
+        },
+        r"/register":
         {
             "origins": ["http://localhost:58173"]
         }
@@ -55,11 +59,12 @@ def register():
     if mongo.db.Users.find_one({'email': request.json['email']}):
         message = {'message' : 'That email is already in use.', 'success': False}
     else:
+        request.json['isEmployee'] = False
         mongo.db.Users.insert_one(request.json)
         message = {'message': 'Success! You are being redirected to the login page.', 'success': True}
 
     return message
 
 
-app.run(host='0.0.0.0',
+app.run(host='0.0.0.0', port=5001,
         debug=True)
