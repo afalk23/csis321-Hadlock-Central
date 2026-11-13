@@ -134,3 +134,11 @@ This is still local demo state. Sample inventory uses two units per item, with o
 - The app-level padding around `MaterialApp` was removed so mobile navigation and content can use the full screen. Android/iOS display names use “Hadlock Central.”
 - The booking conflict is expected when the sample Saturday booking at Court 2 from 1–2 PM is duplicated. Change the location or choose another time; the form now explains this without discarding the entered form data.
 - These are still prototype-only repository checks. The API must repeat validation/conflict checks and enforce staff permissions; local staff preview and in-memory operations are not secure or persistent.
+
+## Sign-in landing page update — November 12, 2026
+
+`hadlock_central_flutter/lib/pages/sign_in_page.dart` now introduces Hadlock Central before showing the existing login form. The responsive layout places an app introduction beside the sign-in card on wide screens and above it on narrow screens. It uses the app's existing Material color theme, a simple built-in center icon, and small previews for Schedule, Equipment, and Announcements.
+
+The login request, success navigation, registration navigation, and input validation are unchanged in purpose. This is a presentation update only; it does not add authentication features or change the API. Comments in the page explain the main layout sections and form actions. Two marked beginner edits are available in `_WelcomePanel`: rewrite the welcome sentence and change a feature label in the `_FeatureTag` list.
+
+The registration page now uses a matching responsive layout with a short welcome panel and a card around its form. It scrolls on smaller screens and uses outlined fields, a progress state, and a sign-in link. Registration validation, `/register` request fields, and navigation after a successful registration remain unchanged.

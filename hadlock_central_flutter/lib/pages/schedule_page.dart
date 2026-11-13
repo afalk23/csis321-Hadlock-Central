@@ -53,6 +53,7 @@ class _SchedulePageState extends State<SchedulePage> {
     }
   }
 
+  // Loads the personal equipment reservations for the signed-in student.
   Future<void> _loadPersonalReservations() async {
     // Equipment reservations stay separate from the shared facility calendar.
     final reservations = await widget.equipmentRepository.reservationsFor(
@@ -61,6 +62,7 @@ class _SchedulePageState extends State<SchedulePage> {
     if (mounted) setState(() => _personalReservations = reservations);
   }
 
+  // Returns a list of calendar entries for the date.
   void _reload() {
     _loadPersonalReservations();
     setState(() {
@@ -95,6 +97,7 @@ class _SchedulePageState extends State<SchedulePage> {
     });
   }
 
+  // Returns a list of calendar entries for the given date.
   Future<void> _createEntry(CalendarEntryType type) async {
     try {
       final saved = await showDialog<bool>(
@@ -128,6 +131,7 @@ class _SchedulePageState extends State<SchedulePage> {
     }
   }
 
+  // Deletes a calendar entry after conformation.
   Future<void> _deleteEntry(CalendarEntry entry) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -162,7 +166,8 @@ class _SchedulePageState extends State<SchedulePage> {
           behavior: SnackBarBehavior.floating,
         ),
       );
-    } catch (_) {
+      // If the deleted entry was the only one on the selected date, move the selection to the next day so the agenda is not empty.
+    } catch (_) {  
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -175,6 +180,7 @@ class _SchedulePageState extends State<SchedulePage> {
     }
   }
 
+  // Returns the list of calendar entries for the selected date.    
   @override
   Widget build(BuildContext context) {
     final compact = MediaQuery.sizeOf(context).width < 680;
@@ -197,6 +203,7 @@ class _SchedulePageState extends State<SchedulePage> {
           );
         }
 
+        // If the data is successfully loaded, display the schedule page with the calendar and agenda.
         final entries = snapshot.data ?? const [];
         return LayoutBuilder(
           builder: (context, constraints) {
@@ -262,9 +269,9 @@ class _SchedulePageState extends State<SchedulePage> {
                         reservations: _personalReservations
                             .where(
                               (entry) =>
-                                  _sameDay(entry.startsAt, _selectedDate),
+                                  _sameDay(entry.startsAt, _selectedDate), // Filter reservations for the selected date
                             )
-                            .toList(),
+                            .toList(), // Pass the filtered reservations to the agenda
                       ),
                       const SizedBox(height: 20),
                       const _CalendarLegend(),
@@ -279,6 +286,7 @@ class _SchedulePageState extends State<SchedulePage> {
     );
   }
 
+  // Filters the list of calendar entries to include those that occur on the specific date.
   Widget _buildCalendar(List<CalendarEntry> entries) => Card(
     child: Padding(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
@@ -364,6 +372,7 @@ class _SchedulePageState extends State<SchedulePage> {
     );
   }
 
+  // Filters the calendar entries to include those that occur on the specific date.
   Widget _buildDayCell(DateTime date, List<CalendarEntry> entries) {
     if (date.month != _visibleMonth.month) {
       // Blank out spillover dates so they cannot be mistaken for dates in the
@@ -483,7 +492,7 @@ class _DemoModeNotice extends StatelessWidget {
         const SizedBox(width: 10),
         const Expanded(
           child: Text(
-            'Staff preview is for exploring the prototype. Real staff access must come from the authenticated account and be enforced by the API.',
+            'Staff preview is a temporary work around. Real staff access must come from the authenticated account with a API connection.',
           ),
         ),
       ],
@@ -797,6 +806,7 @@ class _EmptyDay extends StatelessWidget {
   );
 }
 
+/// Displays a legend for the calendar, indicating the meaning of different colors and symbols.
 class _CalendarLegend extends StatelessWidget {
   const _CalendarLegend();
 

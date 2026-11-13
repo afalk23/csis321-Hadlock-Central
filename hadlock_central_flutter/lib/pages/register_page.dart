@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hadlock_central_flutter/functions/post_data_function.dart';
 import 'package:hadlock_central_flutter/pages/sign_in_page.dart';
-import 'package:hadlock_central_flutter/widgets/form_text_field.dart';
 
 /// RegisterPage is a StatefulWidget that allows users to create an account.
 class RegisterPage extends StatefulWidget {
@@ -128,31 +127,161 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   Widget build(BuildContext context) {
-    /// The build method constructs the UI for the RegisterPage.
+    final colors = Theme.of(context).colorScheme;
+    final isWide = MediaQuery.sizeOf(context).width >= 760;
+
+    // The scroll view prevents the form from being cut off on small screens.
     return Scaffold(
-      /// The AppBar displays the title of the page.
-      appBar: AppBar(title: const Text('Sign Up')),
-
-      /// The body of the page contains a ListView with form fields and a submit button.
-      body: ListView(
-        children: [
-          /// FormTextField widgets are used to create input fields for first name, last name, email, and password.
-          FormTextField(label: "First Name", textController: fnController),
-          FormTextField(label: "Last Name", textController: lnController),
-          FormTextField(label: "Email", textController: emailController),
-          FormTextField(label: "Password", textController: passwordController),
-
-          /// The TextButton widget is used to submit the registration form.
-          TextButton(
-            /// The onPressed callback is disabled when a submission is in progress to prevent multiple requests.
-            onPressed: _isSubmitting ? null : _submitRegistration,
-
-            /// The child of the button displays a CircularProgressIndicator when submitting, and "Submit" text otherwise.
-            child: _isSubmitting
-                ? const CircularProgressIndicator()
-                : const Text('Submit'),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1040),
+              child: isWide
+                  ? Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(child: _buildWelcomePanel(colors)),
+                        const SizedBox(width: 48),
+                        SizedBox(
+                          width: 460,
+                          child: _buildRegistrationCard(),
+                        ),
+                      ],
+                    )
+                  : SizedBox(
+                      width: double.infinity,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _buildWelcomePanel(colors),
+                          const SizedBox(height: 24),
+                          _buildRegistrationCard(),
+                        ],
+                      ),
+                    ),
+            ),
           ),
-        ],
+        ),
+      ),
+    );
+  }
+
+  /// A short introduction keeps registration visually connected to sign-in.
+  Widget _buildWelcomePanel(ColorScheme colors) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Reuse the same center icon and theme color as the sign-in page.
+        Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            color: colors.primary,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: const Icon(
+            Icons.sports_gymnastics,
+            color: Colors.white,
+            size: 30,
+          ),
+        ),
+        const SizedBox(height: 18),
+        Text(
+          'Create your account',
+          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                color: colors.primary,
+                fontWeight: FontWeight.bold,
+              ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Join Hadlock Central with your George Fox email.',
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
+        ),
+      ],
+    );
+  }
+
+  /// The card groups the four fields and the registration actions together.
+  Widget _buildRegistrationCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Sign up', style: Theme.of(context).textTheme.headlineSmall),
+            const SizedBox(height: 20),
+            // Each field keeps using the controller read by _submitRegistration.
+            TextField(
+              controller: fnController,
+              textCapitalization: TextCapitalization.words,
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(
+                labelText: 'First name',
+                prefixIcon: Icon(Icons.person_outline),
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: lnController,
+              textCapitalization: TextCapitalization.words,
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(
+                labelText: 'Last name',
+                prefixIcon: Icon(Icons.person_outline),
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: emailController,
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(
+                labelText: 'George Fox email',
+                hintText: 'name@georgefox.edu',
+                prefixIcon: Icon(Icons.email_outlined),
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: passwordController,
+              obscureText: true,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _submitRegistration(),
+              decoration: const InputDecoration(
+                labelText: 'Password',
+                prefixIcon: Icon(Icons.lock_outline),
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 20),
+            // The button shows progress while the existing API request runs.
+            FilledButton(
+              onPressed: _isSubmitting ? null : _submitRegistration,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: _isSubmitting
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Create account'),
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Existing users can return to sign-in from this link.
+            // TextButton(//TODO),
+          ],
+        ),
       ),
     );
   }
