@@ -31,7 +31,7 @@ class HadlockCentralApp extends StatelessWidget {
     /// The build method constructs the UI for the HadlockCentralApp widget.
     final scheme = ColorScheme.fromSeed(
       seedColor: const Color.fromARGB(255, 43, 53, 239),
-      surface: const Color.fromARGB(233, 252, 243, 229),
+      surface: const Color.fromARGB(239, 252, 243, 229),
     );
 
     /// The MaterialApp widget is the root of the application, setting up theme and home page.
