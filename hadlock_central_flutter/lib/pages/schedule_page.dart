@@ -232,7 +232,7 @@ class _SchedulePageState extends State<SchedulePage> {
                       ),
                       const SizedBox(height: 20),
                       if (staffPreview) ...[
-                        const _DemoModeNotice(),
+                        //const _DemoModeNotice(),
                         const SizedBox(height: 16),
                       ],
                       if (sideBySide)
