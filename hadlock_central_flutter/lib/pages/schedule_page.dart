@@ -177,6 +177,7 @@ class _SchedulePageState extends State<SchedulePage> {
 
   @override
   Widget build(BuildContext context) {
+    final staffPreview = widget.account.isEmployee && _staffPreview;
     final compact = MediaQuery.sizeOf(context).width < 680;
     return FutureBuilder<List<CalendarEntry>>(
       future: _entriesFuture,
@@ -214,6 +215,7 @@ class _SchedulePageState extends State<SchedulePage> {
                     children: [
                       _ScheduleHeader(
                         staffPreview: _staffPreview,
+                        isEmployee: widget.account.isEmployee,
                         onStaffPreviewChanged: (value) =>
                             setState(() => _staffPreview = value),
                         onCreateEvent: () =>
@@ -222,7 +224,7 @@ class _SchedulePageState extends State<SchedulePage> {
                             _createEntry(CalendarEntryType.booking),
                       ),
                       const SizedBox(height: 20),
-                      if (_staffPreview) ...[
+                      if (staffPreview) ...[
                         const _DemoModeNotice(),
                         const SizedBox(height: 16),
                       ],
@@ -240,7 +242,7 @@ class _SchedulePageState extends State<SchedulePage> {
                                   entries,
                                   _selectedDate,
                                 ),
-                                staffPreview: _staffPreview,
+                                staffPreview: staffPreview,
                                 onDelete: _deleteEntry,
                               ),
                             ),
@@ -252,7 +254,7 @@ class _SchedulePageState extends State<SchedulePage> {
                         _DayAgenda(
                           date: _selectedDate,
                           entries: _entriesForDate(entries, _selectedDate),
-                          staffPreview: _staffPreview,
+                          staffPreview: staffPreview,
                           onDelete: _deleteEntry,
                         ),
                       ],
@@ -391,12 +393,14 @@ class _SchedulePageState extends State<SchedulePage> {
 class _ScheduleHeader extends StatelessWidget {
   const _ScheduleHeader({
     required this.staffPreview,
+    required this.isEmployee,
     required this.onStaffPreviewChanged,
     required this.onCreateEvent,
     required this.onCreateBooking,
   });
 
   final bool staffPreview;
+  final bool isEmployee;
   final ValueChanged<bool> onStaffPreviewChanged;
   final VoidCallback onCreateEvent;
   final VoidCallback onCreateBooking;
@@ -437,15 +441,18 @@ class _ScheduleHeader extends StatelessWidget {
             ],
           ],
         ),
-        TextButton.icon(
-          onPressed: () => onStaffPreviewChanged(!staffPreview),
-          icon: Icon(
-            staffPreview
-                ? Icons.admin_panel_settings
-                : Icons.visibility_outlined,
+        if (isEmployee)
+          TextButton.icon(
+            onPressed: () => onStaffPreviewChanged(!staffPreview),
+            icon: Icon(
+              staffPreview
+                  ? Icons.admin_panel_settings
+                  : Icons.visibility_outlined,
+            ),
+            label: Text(
+              staffPreview ? 'Exit staff preview' : 'Staff preview',
+            ),
           ),
-          label: Text(staffPreview ? 'Exit staff preview' : 'Staff preview'),
-        ),
       ],
     );
     return LayoutBuilder(
