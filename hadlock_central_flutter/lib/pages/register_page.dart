@@ -19,6 +19,13 @@ class _RegisterPageState extends State<RegisterPage> {
   // Prevents multiple requests at the same time.
   bool _isSubmitting = false;
 
+  /// Returns to sign-in using the same route style as its registration link.
+  void _returnToSignIn() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (context) => const SignInPage()),
+    );
+  }
+
   Future<void> _submitRegistration() async {
     // Do not submit if a request is already running.
     if (_isSubmitting) {
@@ -65,11 +72,7 @@ class _RegisterPageState extends State<RegisterPage> {
         if (!mounted) return;
 
         // Navigate to the sign-in page.
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => const SignInPage(),
-          ),
-        );
+        _returnToSignIn();
       } else {
         // Registration failed; stay on the form.
         await _showMessage(
@@ -214,7 +217,21 @@ class _RegisterPageState extends State<RegisterPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Sign up', style: Theme.of(context).textTheme.headlineSmall),
+            // Keep the back action beside the title on both screen sizes.
+            Row(
+              children: [
+                IconButton(
+                  onPressed: _isSubmitting ? null : _returnToSignIn,
+                  icon: const Icon(Icons.arrow_back),
+                  tooltip: 'Back to sign in',
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Sign up',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+              ],
+            ),
             const SizedBox(height: 20),
             // Each field keeps using the controller read by _submitRegistration.
             TextField(
@@ -278,8 +295,11 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
             ),
             const SizedBox(height: 8),
-            // Existing users can return to sign-in from this link.
-            // TextButton(//TODO),
+            // Existing users can also return to sign-in from this link.
+            TextButton(
+              onPressed: _isSubmitting ? null : _returnToSignIn,
+              child: const Text('Already have an account? Sign in'),
+            ),
           ],
         ),
       ),
