@@ -153,8 +153,8 @@ class QuickLinks extends StatelessWidget {
         1,
       ),
       QuickLink(
-        'Equipment',
-        'Check item availability',
+        'Rentals',
+        'Browse equipment and spaces',
         Icons.sports_basketball_outlined,
         2,
       ),

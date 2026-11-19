@@ -18,7 +18,7 @@ void main() => runApp(const HadlockCentralApp());
 const _destinations = <Destination>[
   Destination('Home', Icons.home_outlined),
   Destination('Schedule', Icons.calendar_month_outlined),
-  Destination('Equipment', Icons.sports_basketball_outlined),
+  Destination('Rentals', Icons.sports_basketball_outlined),
   Destination('Announcements', Icons.mail_outline),
 ];
 

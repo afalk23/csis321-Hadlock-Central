@@ -29,4 +29,12 @@ class EquipmentItem {
 
   /// Total example units available before any overlapping reservations.
   final int quantity;
+
+  EquipmentItem withQuantity(int quantity) => EquipmentItem(
+    id: id,
+    name: name,
+    category: category,
+    description: description,
+    quantity: quantity,
+  );
 }
