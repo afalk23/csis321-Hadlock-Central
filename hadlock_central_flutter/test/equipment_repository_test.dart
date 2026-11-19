@@ -57,4 +57,42 @@ void main() {
       );
     },
   );
+
+  test('staff inventory changes respect existing reservations', () async {
+    final repository = InMemoryEquipmentRepository();
+    final item = (await repository.getItems()).firstWhere(
+      (entry) => entry.id == 'bike',
+    );
+    final start = DateTime.now().add(const Duration(days: 2));
+    final end = start.add(const Duration(hours: 1));
+
+    await repository.reserve(
+      item: item,
+      accountId: 'student-a',
+      studentId: '1001',
+      start: start,
+      end: end,
+    );
+    await repository.reserve(
+      item: item,
+      accountId: 'student-b',
+      studentId: '1002',
+      start: start,
+      end: end,
+    );
+
+    expect((await repository.getAllReservations()).length, 2);
+    await expectLater(
+      repository.updateQuantity(item.id, 1),
+      throwsA(isA<EquipmentInventoryException>()),
+    );
+    await repository.updateQuantity(item.id, 3);
+    expect(
+      (await repository.getItems())
+          .firstWhere((entry) => entry.id == item.id)
+          .quantity,
+      3,
+    );
+    expect(await repository.availableCount(item.id, start, end), 1);
+  });
 }

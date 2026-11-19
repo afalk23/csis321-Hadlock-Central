@@ -142,3 +142,11 @@ This is still local demo state. Sample inventory uses two units per item, with o
 The login request, success navigation, registration navigation, and input validation are unchanged in purpose. This is a presentation update only; it does not add authentication features or change the API. Comments in the page explain the main layout sections and form actions. Two marked beginner edits are available in `_WelcomePanel`: rewrite the welcome sentence and change a feature label in the `_FeatureTag` list.
 
 The registration page now uses a matching responsive layout with a short welcome panel and a card around its form. It scrolls on smaller screens and uses outlined fields, a progress state, and a sign-in link. Registration validation, `/register` request fields, and navigation after a successful registration remain unchanged.
+
+## Rentals page update — November 19, 2026
+
+The Equipment navigation destination is now labeled Rentals. Its Reservations category lists Court 1, Court 2, Court 3, the small and large private studios, and the rock wall. Users can search these spaces, open their details, and jump to Schedule to see existing calendar entries. This facility list is display data only; online facility booking and availability are not connected. Equipment reservations retain their existing local demo behavior.
+
+## Rentals staff preview — November 19, 2026
+
+Rentals now has a staff preview control matching Schedule. It lists equipment reservations with the item, student ID, and requested time so desk staff can check pickup details in the demo. Staff preview also exposes a quantity editor on each equipment card. The in-memory repository updates availability from the edited quantity and refuses reductions below existing overlapping reservations. These edits and reservation records disappear when the app restarts. Preview is open to any app user and is not authorization; production APIs must enforce staff access to inventory edits and student IDs.

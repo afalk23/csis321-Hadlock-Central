@@ -6,7 +6,7 @@ import '../models/equipment_reservation.dart';
 import '../models/student_account.dart';
 import 'equipment_reservation_dialog.dart';
 
-/// Browse and search equipment from the supplied repository.
+/// Browse equipment rentals and facility reservation spaces.
 class EquipmentPage extends StatefulWidget {
   const EquipmentPage({
     super.key,
@@ -26,7 +26,10 @@ class EquipmentPage extends StatefulWidget {
 class _EquipmentPageState extends State<EquipmentPage> {
   final _searchController = TextEditingController();
   EquipmentCategory? _category;
+  bool _showReservations = false;
+  bool _staffPreview = false;
   late Future<List<EquipmentItem>> _itemsFuture;
+  Future<List<EquipmentReservation>>? _staffReservationsFuture;
 
   @override
   void initState() {
@@ -41,6 +44,9 @@ class _EquipmentPageState extends State<EquipmentPage> {
     // Reload when the app switches from sample data to another repository.
     if (oldWidget.repository != widget.repository) {
       _itemsFuture = widget.repository.getItems();
+      if (_staffPreview) {
+        _staffReservationsFuture = widget.repository.getAllReservations();
+      }
     }
   }
 
@@ -56,6 +62,10 @@ class _EquipmentPageState extends State<EquipmentPage> {
 
   void _reload() => setState(() => _itemsFuture = widget.repository.getItems());
 
+  void _reloadStaffReservations() => setState(() {
+    _staffReservationsFuture = widget.repository.getAllReservations();
+  });
+
   Future<void> _reserve(EquipmentItem item) async {
     final reservation = await showDialog<EquipmentReservation>(
       context: context,
@@ -66,6 +76,7 @@ class _EquipmentPageState extends State<EquipmentPage> {
       ),
     );
     if (!mounted || reservation == null) return;
+    if (_staffPreview) _reloadStaffReservations();
     // Personal reservations appear only on the signed-in student's calendar.
     await showDialog<void>(
       context: context,
@@ -108,16 +119,41 @@ class _EquipmentPageState extends State<EquipmentPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Equipment',
+                    'Rentals',
                     style: Theme.of(context).textTheme.headlineMedium,
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Browse gear and activities by category.',
+                    'Browse equipment and spaces available at Hadlock Central.',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
+                  // Match the Schedule page's temporary staff preview control.
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: () => setState(() {
+                        _staffPreview = !_staffPreview;
+                        if (_staffPreview) {
+                          _staffReservationsFuture = widget.repository
+                              .getAllReservations();
+                        }
+                      }),
+                      icon: Icon(
+                        _staffPreview
+                            ? Icons.admin_panel_settings
+                            : Icons.visibility_outlined,
+                      ),
+                      label: Text(
+                        _staffPreview ? 'Exit staff preview' : 'Staff preview',
+                      ),
+                    ),
+                  ),
+                  if (_staffPreview) ...[
+                    const SizedBox(height: 8),
+                    _buildStaffReservations(),
+                  ],
                   const SizedBox(height: 18),
                   Container(
                     width: double.infinity,
@@ -126,15 +162,19 @@ class _EquipmentPageState extends State<EquipmentPage> {
                       color: Theme.of(context).colorScheme.primaryContainer,
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    child: const Text(
-                      'Sample inventory · Reservations are a local demo and are cleared when the app restarts.',
+                    child: Text(
+                      _showReservations
+                          ? 'Browse spaces below and check the schedule for existing bookings. Online facility booking is not connected yet.'
+                          : 'Sample inventory · Equipment reservations are a local demo and are cleared when the app restarts.',
                     ),
                   ),
                   const SizedBox(height: 24),
                   TextField(
                     controller: _searchController,
                     decoration: InputDecoration(
-                      hintText: 'Search equipment',
+                      hintText: _showReservations
+                          ? 'Search reservation spaces'
+                          : 'Search equipment',
                       prefixIcon: const Icon(Icons.search),
                       suffixIcon: _searchController.text.isEmpty
                           ? null
@@ -157,116 +197,299 @@ class _EquipmentPageState extends State<EquipmentPage> {
                     children: [
                       ChoiceChip(
                         label: const Text('All products'),
-                        selected: _category == null,
-                        onSelected: (_) => setState(() => _category = null),
+                        selected: !_showReservations && _category == null,
+                        onSelected: (_) => setState(() {
+                          _showReservations = false;
+                          _category = null;
+                        }),
                       ),
                       for (final category in EquipmentCategory.values)
                         ChoiceChip(
                           label: Text(category.label),
-                          selected: _category == category,
-                          onSelected: (_) =>
-                              setState(() => _category = category),
+                          selected: !_showReservations && _category == category,
+                          onSelected: (_) => setState(() {
+                            _showReservations = false;
+                            _category = category;
+                          }),
                         ),
+                      ChoiceChip(
+                        label: const Text('Reservations'),
+                        selected: _showReservations,
+                        onSelected: (_) =>
+                            setState(() => _showReservations = true),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 24),
-                  FutureBuilder<List<EquipmentItem>>(
-                    future: _itemsFuture,
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(48),
-                            child: CircularProgressIndicator(),
-                          ),
-                        );
-                      }
-                      if (snapshot.hasError) {
-                        return Center(
-                          child: Column(
-                            children: [
-                              const Text('Equipment could not be loaded.'),
-                              TextButton(
-                                onPressed: _reload,
-                                child: const Text('Try again'),
-                              ),
-                            ],
-                          ),
-                        );
-                      }
-                      final query = _searchController.text.trim().toLowerCase();
-                      // Apply category and text filters to the same loaded catalog.
-                      final items =
-                          (snapshot.data ?? const <EquipmentItem>[])
-                              .where(
-                                (item) =>
-                                    (_category == null ||
-                                        item.category == _category) &&
-                                    (query.isEmpty ||
-                                        item.name.toLowerCase().contains(
-                                          query,
-                                        ) ||
-                                        item.description.toLowerCase().contains(
-                                          query,
-                                        ) ||
-                                        item.category.label
-                                            .toLowerCase()
-                                            .contains(query)),
-                              )
-                              .toList()
-                            ..sort((a, b) => a.name.compareTo(b.name));
-                      if (items.isEmpty) {
-                        return const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 48),
-                          child: Center(
-                            child: Text('No equipment matches your search.'),
-                          ),
-                        );
-                      }
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${items.length} ${items.length == 1 ? 'item' : 'items'}',
-                            style: Theme.of(context).textTheme.labelLarge,
-                          ),
-                          const SizedBox(height: 12),
-                          LayoutBuilder(
-                            builder: (context, gridConstraints) {
-                              final width = gridConstraints.maxWidth;
-                              final columns = width >= 900
-                                  ? 3
-                                  : width >= 560
-                                  ? 2
-                                  : 1;
-                              final cardWidth =
-                                  (width - (columns - 1) * 12) / columns;
-                              return Wrap(
-                                spacing: 12,
-                                runSpacing: 12,
-                                children: [
-                                  for (final item in items)
-                                    SizedBox(
-                                      width: cardWidth,
-                                      child: _EquipmentCard(
-                                        item: item,
-                                        onTap: () => _showDetails(item),
+                  if (_showReservations)
+                    _buildReservationSpaces()
+                  else
+                    FutureBuilder<List<EquipmentItem>>(
+                      future: _itemsFuture,
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(48),
+                              child: CircularProgressIndicator(),
+                            ),
+                          );
+                        }
+                        if (snapshot.hasError) {
+                          return Center(
+                            child: Column(
+                              children: [
+                                const Text('Equipment could not be loaded.'),
+                                TextButton(
+                                  onPressed: _reload,
+                                  child: const Text('Try again'),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+                        final query = _searchController.text
+                            .trim()
+                            .toLowerCase();
+                        // Apply category and text filters to the same loaded catalog.
+                        final items =
+                            (snapshot.data ?? const <EquipmentItem>[])
+                                .where(
+                                  (item) =>
+                                      (_category == null ||
+                                          item.category == _category) &&
+                                      (query.isEmpty ||
+                                          item.name.toLowerCase().contains(
+                                            query,
+                                          ) ||
+                                          item.description
+                                              .toLowerCase()
+                                              .contains(query) ||
+                                          item.category.label
+                                              .toLowerCase()
+                                              .contains(query)),
+                                )
+                                .toList()
+                              ..sort((a, b) => a.name.compareTo(b.name));
+                        if (items.isEmpty) {
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 48),
+                            child: Center(
+                              child: Text('No equipment matches your search.'),
+                            ),
+                          );
+                        }
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${items.length} ${items.length == 1 ? 'item' : 'items'}',
+                              style: Theme.of(context).textTheme.labelLarge,
+                            ),
+                            const SizedBox(height: 12),
+                            LayoutBuilder(
+                              builder: (context, gridConstraints) {
+                                final width = gridConstraints.maxWidth;
+                                final columns = width >= 900
+                                    ? 3
+                                    : width >= 560
+                                    ? 2
+                                    : 1;
+                                final cardWidth =
+                                    (width - (columns - 1) * 12) / columns;
+                                return Wrap(
+                                  spacing: 12,
+                                  runSpacing: 12,
+                                  children: [
+                                    for (final item in items)
+                                      SizedBox(
+                                        width: cardWidth,
+                                        child: _EquipmentCard(
+                                          item: item,
+                                          onTap: () => _showDetails(item),
+                                          onEditQuantity: _staffPreview
+                                              ? () => _editQuantity(item)
+                                              : null,
+                                        ),
                                       ),
-                                    ),
-                                ],
-                              );
-                            },
-                          ),
-                        ],
-                      );
-                    },
-                  ),
+                                  ],
+                                );
+                              },
+                            ),
+                          ],
+                        );
+                      },
+                    ),
                 ],
               ),
             ),
           ),
         );
       },
+    );
+  }
+
+  /// Staff preview reads every equipment reservation for front desk pickup.
+  Widget _buildStaffReservations() => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Staff preview', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 6),
+          const Text(
+            'Demo access only. Staff authentication and shared inventory need a backend connection.',
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Equipment reservations',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+              IconButton(
+                tooltip: 'Refresh reservations',
+                onPressed: _reloadStaffReservations,
+                icon: const Icon(Icons.refresh),
+              ),
+            ],
+          ),
+          FutureBuilder<List<EquipmentReservation>>(
+            future: _staffReservationsFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const LinearProgressIndicator();
+              }
+              if (snapshot.hasError) {
+                return const Text('Reservations could not be loaded.');
+              }
+              final reservations = [...?snapshot.data]
+                ..sort((a, b) => a.startsAt.compareTo(b.startsAt));
+              if (reservations.isEmpty) {
+                return const Text('No equipment reservations yet.');
+              }
+              return Column(
+                children: [
+                  for (final reservation in reservations)
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.inventory_2_outlined),
+                      title: Text(reservation.itemName),
+                      subtitle: Text(
+                        'Student ID: ${reservation.studentId}\n'
+                        '${MaterialLocalizations.of(context).formatMediumDate(reservation.startsAt)} '
+                        '${TimeOfDay.fromDateTime(reservation.startsAt).format(context)}–'
+                        '${TimeOfDay.fromDateTime(reservation.endsAt).format(context)}',
+                      ),
+                      isThreeLine: true,
+                    ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    ),
+  );
+
+  Future<void> _editQuantity(EquipmentItem item) async {
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (context) =>
+          _EditQuantityDialog(item: item, repository: widget.repository),
+    );
+    if (saved == true && mounted) _reload();
+  }
+
+  /// Shows the reservable spaces without treating them as equipment inventory.
+  Widget _buildReservationSpaces() {
+    final query = _searchController.text.trim().toLowerCase();
+    final spaces = _reservationSpaces
+        .where(
+          (space) =>
+              query.isEmpty ||
+              space.name.toLowerCase().contains(query) ||
+              space.type.toLowerCase().contains(query) ||
+              space.description.toLowerCase().contains(query),
+        )
+        .toList();
+
+    if (spaces.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 48),
+        child: Center(child: Text('No reservation spaces match your search.')),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${spaces.length} ${spaces.length == 1 ? 'space' : 'spaces'}',
+          style: Theme.of(context).textTheme.labelLarge,
+        ),
+        const SizedBox(height: 12),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final width = constraints.maxWidth;
+            final columns = width >= 900
+                ? 3
+                : width >= 560
+                ? 2
+                : 1;
+            final cardWidth = (width - (columns - 1) * 12) / columns;
+            return Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                for (final space in spaces)
+                  SizedBox(
+                    width: cardWidth,
+                    child: _ReservationSpaceCard(
+                      space: space,
+                      onTap: () => _showSpaceDetails(space),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  void _showSpaceDetails(_ReservationSpace space) {
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(space.name),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(space.type, style: Theme.of(context).textTheme.labelLarge),
+            const SizedBox(height: 12),
+            Text(space.description),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              widget.onOpenSchedule();
+            },
+            child: const Text('View schedule'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -313,10 +536,15 @@ class _EquipmentPageState extends State<EquipmentPage> {
 
 /// Catalog card that opens the selected item's details.
 class _EquipmentCard extends StatelessWidget {
-  const _EquipmentCard({required this.item, required this.onTap});
+  const _EquipmentCard({
+    required this.item,
+    required this.onTap,
+    required this.onEditQuantity,
+  });
 
   final EquipmentItem item;
   final VoidCallback onTap;
+  final VoidCallback? onEditQuantity;
 
   @override
   Widget build(BuildContext context) => Card(
@@ -344,6 +572,209 @@ class _EquipmentCard extends StatelessWidget {
             const SizedBox(height: 7),
             Text(
               item.description,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 12),
+            if (onEditQuantity != null) ...[
+              OutlinedButton.icon(
+                onPressed: onEditQuantity,
+                icon: const Icon(Icons.edit_outlined),
+                label: Text('Quantity: ${item.quantity}'),
+              ),
+              const SizedBox(height: 8),
+            ],
+            const Row(
+              children: [
+                Text('View details'),
+                SizedBox(width: 5),
+                Icon(Icons.arrow_forward, size: 16),
+              ],
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+/// Edits the sample inventory and keeps validation feedback inside the form.
+class _EditQuantityDialog extends StatefulWidget {
+  const _EditQuantityDialog({required this.item, required this.repository});
+
+  final EquipmentItem item;
+  final EquipmentRepository repository;
+
+  @override
+  State<_EditQuantityDialog> createState() => _EditQuantityDialogState();
+}
+
+class _EditQuantityDialogState extends State<_EditQuantityDialog> {
+  late final TextEditingController _quantity = TextEditingController(
+    text: widget.item.quantity.toString(),
+  );
+  String? _error;
+  bool _saving = false;
+
+  Future<void> _save() async {
+    if (_saving) return;
+    final value = int.tryParse(_quantity.text.trim());
+    if (value == null || value < 0) {
+      setState(() => _error = 'Enter a whole number of zero or more.');
+      return;
+    }
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await widget.repository.updateQuantity(widget.item.id, value);
+      if (mounted) Navigator.of(context).pop(true);
+    } on EquipmentInventoryException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = 'Could not update quantity. Try again.');
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _quantity.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text('Edit ${widget.item.name} quantity'),
+    content: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: _quantity,
+          keyboardType: TextInputType.number,
+          autofocus: true,
+          onSubmitted: (_) => _save(),
+          decoration: const InputDecoration(
+            labelText: 'Total quantity',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        if (_error != null) ...[
+          const SizedBox(height: 12),
+          Text(
+            _error!,
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+        ],
+      ],
+    ),
+    actions: [
+      TextButton(
+        onPressed: _saving ? null : () => Navigator.of(context).pop(),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(
+        onPressed: _saving ? null : _save,
+        child: Text(_saving ? 'Saving...' : 'Save quantity'),
+      ),
+    ],
+  );
+}
+
+/// Display data for the facility section; these are not equipment units.
+class _ReservationSpace {
+  const _ReservationSpace({
+    required this.name,
+    required this.type,
+    required this.description,
+    required this.icon,
+  });
+
+  final String name;
+  final String type;
+  final String description;
+  final IconData icon;
+}
+
+const _reservationSpaces = <_ReservationSpace>[
+  _ReservationSpace(
+    name: 'Court 1',
+    type: 'Gym court',
+    description: 'One of three gym courts for recreational activities.',
+    icon: Icons.sports_basketball_outlined,
+  ),
+  _ReservationSpace(
+    name: 'Court 2',
+    type: 'Gym court',
+    description: 'One of three gym courts for recreational activities.',
+    icon: Icons.sports_basketball_outlined,
+  ),
+  _ReservationSpace(
+    name: 'Court 3',
+    type: 'Gym court',
+    description: 'One of three gym courts for recreational activities.',
+    icon: Icons.sports_basketball_outlined,
+  ),
+  _ReservationSpace(
+    name: 'Small private studio',
+    type: 'Room',
+    description:
+        'A smaller private studio space for individual or small group use.',
+    icon: Icons.meeting_room_outlined,
+  ),
+  _ReservationSpace(
+    name: 'Large private studio',
+    type: 'Room',
+    description: 'A larger private studio space for group activities.',
+    icon: Icons.meeting_room_outlined,
+  ),
+  _ReservationSpace(
+    name: 'Rock wall',
+    type: 'Climbing space',
+    description: 'The indoor rock wall for climbing activities.',
+    icon: Icons.terrain_outlined,
+  ),
+];
+
+/// Facility card styled like the equipment cards in the same catalog.
+class _ReservationSpaceCard extends StatelessWidget {
+  const _ReservationSpaceCard({required this.space, required this.onTap});
+
+  final _ReservationSpace space;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              space.icon,
+              size: 30,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            const SizedBox(height: 14),
+            Text(
+              space.type,
+              style: Theme.of(context).textTheme.labelMedium
+                  ?.copyWith(color: Theme.of(context).colorScheme.primary),
+            ),
+            const SizedBox(height: 5),
+            Text(space.name, style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 7),
+            Text(
+              space.description,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.bodyMedium,

@@ -14,6 +14,10 @@ abstract class EquipmentRepository {
     required DateTime end,
   });
   Future<List<EquipmentReservation>> reservationsFor(String accountId);
+
+  /// Staff preview operations; a production API must authorize these calls.
+  Future<List<EquipmentReservation>> getAllReservations();
+  Future<void> updateQuantity(String itemId, int quantity);
 }
 
 class EquipmentUnavailableException implements Exception {
@@ -25,14 +29,19 @@ class EquipmentReservationException implements Exception {
   final String message;
 }
 
+class EquipmentInventoryException implements Exception {
+  const EquipmentInventoryException(this.message);
+  final String message;
+}
+
 /// Example catalog for UI development; it does not represent live inventory.
 class InMemoryEquipmentRepository implements EquipmentRepository {
+  final List<EquipmentItem> _items = List.of(_sampleItems);
   final List<EquipmentReservation> _reservations = [];
   int _nextId = 0;
 
   @override
-  Future<List<EquipmentItem>> getItems() async =>
-      List.unmodifiable(_sampleItems);
+  Future<List<EquipmentItem>> getItems() async => List.unmodifiable(_items);
 
   @override
   Future<int> availableCount(
@@ -42,7 +51,7 @@ class InMemoryEquipmentRepository implements EquipmentRepository {
   ) async => _availableCount(itemId, start, end);
 
   int _availableCount(String itemId, DateTime start, DateTime end) {
-    final item = _sampleItems
+    final item = _items
         .where((candidate) => candidate.id == itemId)
         .firstOrNull;
     if (item == null) return 0;
@@ -73,7 +82,10 @@ class InMemoryEquipmentRepository implements EquipmentRepository {
         'Choose a valid future time and sign in first.',
       );
     }
-    // Recheck availability when saving so two requests cannot take the last unit.
+    if (!_items.any((candidate) => candidate.id == item.id)) {
+      throw const EquipmentReservationException('Item could not be found.');
+    }
+    // Recheck the current inventory when saving; the dialog may hold an older item.
     if (_availableCount(item.id, start, end) < 1) {
       throw const EquipmentUnavailableException();
     }
@@ -95,6 +107,42 @@ class InMemoryEquipmentRepository implements EquipmentRepository {
       List.unmodifiable(
         _reservations.where((entry) => entry.accountId == accountId),
       );
+
+  @override
+  Future<List<EquipmentReservation>> getAllReservations() async =>
+      List.unmodifiable(_reservations);
+
+  @override
+  Future<void> updateQuantity(String itemId, int quantity) async {
+    final index = _items.indexWhere((item) => item.id == itemId);
+    if (index < 0 || quantity < 0) {
+      throw const EquipmentInventoryException('Enter a valid quantity.');
+    }
+
+    // A lower quantity must still cover every existing overlapping booking.
+    final upcoming = _reservations
+        .where(
+          (reservation) =>
+              reservation.itemId == itemId &&
+              reservation.endsAt.isAfter(DateTime.now()),
+        )
+        .toList();
+    for (final reservation in upcoming) {
+      final overlapping = upcoming
+          .where(
+            (other) =>
+                !other.startsAt.isAfter(reservation.startsAt) &&
+                other.endsAt.isAfter(reservation.startsAt),
+          )
+          .length;
+      if (overlapping > quantity) {
+        throw const EquipmentInventoryException(
+          'Quantity cannot be lower than existing reservations at the same time.',
+        );
+      }
+    }
+    _items[index] = _items[index].withQuantity(quantity);
+  }
 }
 
 const _sampleItems = <EquipmentItem>[
