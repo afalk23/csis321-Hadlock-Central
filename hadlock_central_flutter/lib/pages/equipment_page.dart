@@ -30,6 +30,7 @@ class _EquipmentPageState extends State<EquipmentPage> {
   bool _staffPreview = false;
   late Future<List<EquipmentItem>> _itemsFuture;
   Future<List<EquipmentReservation>>? _staffReservationsFuture;
+  Future<List<EquipmentCancellation>>? _cancellationsFuture;
 
   @override
   void initState() {
@@ -46,6 +47,7 @@ class _EquipmentPageState extends State<EquipmentPage> {
       _itemsFuture = widget.repository.getItems();
       if (_staffPreview) {
         _staffReservationsFuture = widget.repository.getAllReservations();
+        _cancellationsFuture = widget.repository.getCancellations();
       }
     }
   }
@@ -64,7 +66,23 @@ class _EquipmentPageState extends State<EquipmentPage> {
 
   void _reloadStaffReservations() => setState(() {
     _staffReservationsFuture = widget.repository.getAllReservations();
+    _cancellationsFuture = widget.repository.getCancellations();
   });
+
+  Future<void> _manageReservation(
+    EquipmentReservation reservation,
+    bool cancel,
+  ) async {
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (context) => _ReservationActionDialog(
+        reservation: reservation,
+        repository: widget.repository,
+        cancel: cancel,
+      ),
+    );
+    if (saved == true && mounted) _reloadStaffReservations();
+  }
 
   Future<void> _reserve(EquipmentItem item) async {
     final reservation = await showDialog<EquipmentReservation>(
@@ -138,6 +156,8 @@ class _EquipmentPageState extends State<EquipmentPage> {
                         if (_staffPreview) {
                           _staffReservationsFuture = widget.repository
                               .getAllReservations();
+                          _cancellationsFuture = widget.repository
+                              .getCancellations();
                         }
                       }),
                       icon: Icon(
@@ -370,26 +390,95 @@ class _EquipmentPageState extends State<EquipmentPage> {
               final reservations = [...?snapshot.data]
                 ..sort((a, b) => a.startsAt.compareTo(b.startsAt));
               if (reservations.isEmpty) {
-                return const Text('No equipment reservations yet.');
+                return const Text(
+                  'No active or completed equipment reservations.',
+                );
               }
               return Column(
                 children: [
                   for (final reservation in reservations)
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: const Icon(Icons.inventory_2_outlined),
-                      title: Text(reservation.itemName),
-                      subtitle: Text(
-                        'Student ID: ${reservation.studentId}\n'
-                        '${MaterialLocalizations.of(context).formatMediumDate(reservation.startsAt)} '
-                        '${TimeOfDay.fromDateTime(reservation.startsAt).format(context)}–'
-                        '${TimeOfDay.fromDateTime(reservation.endsAt).format(context)}',
-                      ),
-                      isThreeLine: true,
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(Icons.inventory_2_outlined),
+                          title: Text(reservation.itemName),
+                          subtitle: Text(
+                            'Student ID: ${reservation.studentId}\n'
+                            '${MaterialLocalizations.of(context).formatMediumDate(reservation.startsAt)} '
+                            '${TimeOfDay.fromDateTime(reservation.startsAt).format(context)}–'
+                            '${TimeOfDay.fromDateTime(reservation.endsAt).format(context)}\n'
+                            '${reservation.completedAt == null ? 'Reserved' : 'Completed and returned'}',
+                          ),
+                          isThreeLine: true,
+                        ),
+                        if (reservation.completedAt == null)
+                          Wrap(
+                            spacing: 8,
+                            children: [
+                              OutlinedButton.icon(
+                                onPressed:
+                                    DateTime.now().isBefore(reservation.endsAt)
+                                    ? null
+                                    : () => _manageReservation(
+                                        reservation,
+                                        false,
+                                      ),
+                                icon: const Icon(Icons.task_alt),
+                                label: const Text('Mark complete'),
+                              ),
+                              TextButton.icon(
+                                onPressed: () =>
+                                    _manageReservation(reservation, true),
+                                icon: const Icon(Icons.delete_outline),
+                                label: const Text('Cancel reservation'),
+                              ),
+                            ],
+                          ),
+                        const Divider(),
+                      ],
                     ),
                 ],
               );
             },
+          ),
+          ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            title: const Text('Cancellation notes'),
+            children: [
+              FutureBuilder<List<EquipmentCancellation>>(
+                future: _cancellationsFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const LinearProgressIndicator();
+                  }
+                  if (snapshot.hasError) {
+                    return const Text(
+                      'Cancellation notes could not be loaded.',
+                    );
+                  }
+                  final cancellations =
+                      snapshot.data ?? const <EquipmentCancellation>[];
+                  if (cancellations.isEmpty) {
+                    return const Text('No cancellations recorded.');
+                  }
+                  return Column(
+                    children: [
+                      for (final entry in cancellations)
+                        ListTile(
+                          title: Text(entry.reservation.itemName),
+                          subtitle: Text(
+                            'Student ID: ${entry.reservation.studentId}\n'
+                            'Reason: ${entry.reason}',
+                          ),
+                          isThreeLine: true,
+                        ),
+                    ],
+                  );
+                },
+              ),
+            ],
           ),
         ],
       ),
@@ -532,6 +621,149 @@ class _EquipmentPageState extends State<EquipmentPage> {
       ),
     );
   }
+}
+
+/// Confirms the checks staff must make before changing a reservation.
+class _ReservationActionDialog extends StatefulWidget {
+  const _ReservationActionDialog({
+    required this.reservation,
+    required this.repository,
+    required this.cancel,
+  });
+
+  final EquipmentReservation reservation;
+  final EquipmentRepository repository;
+  final bool cancel;
+
+  @override
+  State<_ReservationActionDialog> createState() =>
+      _ReservationActionDialogState();
+}
+
+class _ReservationActionDialogState extends State<_ReservationActionDialog> {
+  final _reason = TextEditingController();
+  bool _returned = false;
+  bool _contacted = false;
+  bool _approved = false;
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _reason.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (_saving) return;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      if (widget.cancel) {
+        await widget.repository.cancelReservation(
+          widget.reservation.id,
+          userContacted: _contacted,
+          bossApproved: _approved,
+          reason: _reason.text,
+        );
+      } else {
+        await widget.repository.completeReservation(
+          widget.reservation.id,
+          returned: _returned,
+        );
+      }
+      if (mounted) Navigator.of(context).pop(true);
+    } on EquipmentReservationActionException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = 'Could not update reservation. Try again.');
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text(widget.cancel ? 'Cancel reservation' : 'Complete rental'),
+    content: SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${widget.reservation.itemName} · Student ID: ${widget.reservation.studentId}',
+          ),
+          const SizedBox(height: 12),
+          if (widget.cancel) ...[
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              value: _contacted,
+              onChanged: _saving
+                  ? null
+                  : (value) => setState(() => _contacted = value ?? false),
+              title: const Text('I contacted the reservation holder'),
+            ),
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              value: _approved,
+              onChanged: _saving
+                  ? null
+                  : (value) => setState(() => _approved = value ?? false),
+              title: const Text(
+                'The boss approved the reason for cancellation',
+              ),
+            ),
+            TextField(
+              controller: _reason,
+              enabled: !_saving,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Cancellation reason and note',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ] else ...[
+            const Text('Only complete a rental after its scheduled end time.'),
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              value: _returned,
+              onChanged: _saving
+                  ? null
+                  : (value) => setState(() => _returned = value ?? false),
+              title: const Text('The equipment has been returned'),
+            ),
+          ],
+          if (_error != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ],
+        ],
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: _saving ? null : () => Navigator.of(context).pop(),
+        child: const Text('Back'),
+      ),
+      FilledButton(
+        onPressed: _saving ? null : _submit,
+        child: Text(
+          _saving
+              ? 'Saving...'
+              : widget.cancel
+              ? 'Cancel reservation'
+              : 'Mark complete',
+        ),
+      ),
+    ],
+  );
 }
 
 /// Catalog card that opens the selected item's details.
