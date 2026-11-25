@@ -630,7 +630,7 @@ class _PersonalEquipmentAgenda extends StatelessWidget {
                 Icons.backpack_outlined,
                 color: Colors.deepOrange,
               ),
-              title: Text(reservation.itemName),
+              title: Text('${reservation.itemName} × ${reservation.quantity}'),
               subtitle: Text(
                 '${TimeOfDay.fromDateTime(reservation.startsAt).format(context)}–${TimeOfDay.fromDateTime(reservation.endsAt).format(context)} · ${reservation.completedAt == null ? 'Pick up at the front desk' : 'Completed and returned'}',
               ),

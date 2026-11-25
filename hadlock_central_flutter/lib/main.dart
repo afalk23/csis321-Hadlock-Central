@@ -5,6 +5,7 @@ import 'package:hadlock_central_flutter/data/equipment_repository.dart';
 import 'package:hadlock_central_flutter/pages/announcements.dart';
 import 'package:hadlock_central_flutter/pages/schedule_page.dart';
 import 'package:hadlock_central_flutter/pages/equipment_page.dart';
+import 'package:hadlock_central_flutter/models/equipment_cart_entry.dart';
 import 'package:hadlock_central_flutter/pages/home_page.dart';
 import 'package:hadlock_central_flutter/pages/sign_in_page.dart';
 import 'package:hadlock_central_flutter/models/student_account.dart';
@@ -77,6 +78,7 @@ class AppShellState extends State<AppShell> {
   final CalendarRepository _calendarRepository = InMemoryCalendarRepository();
   final EquipmentRepository _equipmentRepository =
       InMemoryEquipmentRepository();
+  final List<EquipmentCartEntry> _equipmentCart = [];
 
   @override
   Widget build(BuildContext context) {
@@ -94,6 +96,7 @@ class AppShellState extends State<AppShell> {
       ),
       2 => EquipmentPage(
         repository: _equipmentRepository,
+        cart: _equipmentCart,
         account: widget.account,
         onOpenSchedule: () => select(1),
       ),
