@@ -1,17 +1,28 @@
 import '../models/equipment_item.dart';
+import '../models/equipment_cart_entry.dart';
 import '../models/equipment_reservation.dart';
 
 /// Catalog data boundary for a future inventory API implementation.
 abstract class EquipmentRepository {
   Future<List<EquipmentItem>> getItems();
 
-  Future<int> availableCount(String itemId, DateTime start, DateTime end);
+  Future<int> availableCount(
+    String itemId,
+    DateTime start,
+    DateTime end, {
+    List<EquipmentCartEntry> cart = const [],
+  });
   Future<EquipmentReservation> reserve({
     required EquipmentItem item,
     required String accountId,
     required String studentId,
     required DateTime start,
     required DateTime end,
+  });
+  Future<List<EquipmentReservation>> reserveCart({
+    required List<EquipmentCartEntry> entries,
+    required String accountId,
+    required String studentId,
   });
   Future<List<EquipmentReservation>> reservationsFor(String accountId);
 
@@ -32,7 +43,8 @@ abstract class EquipmentRepository {
 }
 
 class EquipmentUnavailableException implements Exception {
-  const EquipmentUnavailableException();
+  const EquipmentUnavailableException(this.message);
+  final String message;
 }
 
 class EquipmentReservationException implements Exception {
@@ -68,23 +80,63 @@ class InMemoryEquipmentRepository implements EquipmentRepository {
   Future<int> availableCount(
     String itemId,
     DateTime start,
-    DateTime end,
-  ) async => _availableCount(itemId, start, end);
+    DateTime end, {
+    List<EquipmentCartEntry> cart = const [],
+  }) async => _availableCount(itemId, start, end, cart);
 
-  int _availableCount(String itemId, DateTime start, DateTime end) {
+  int _availableCount(
+    String itemId,
+    DateTime start,
+    DateTime end,
+    List<EquipmentCartEntry> cart,
+  ) {
     final item = _items
         .where((candidate) => candidate.id == itemId)
         .firstOrNull;
     if (item == null) return 0;
-    return item.quantity -
-        _reservations
-            .where(
-              (reservation) =>
-                  reservation.itemId == itemId &&
-                  start.isBefore(reservation.endsAt) &&
-                  reservation.startsAt.isBefore(end),
-            )
-            .length;
+    final overlapping = _reservations
+        .where(
+          (reservation) =>
+              reservation.itemId == itemId &&
+              start.isBefore(reservation.endsAt) &&
+              reservation.startsAt.isBefore(end),
+        )
+        .toList();
+    final pending = cart
+        .where(
+          (entry) =>
+              entry.item.id == itemId &&
+              start.isBefore(entry.endsAt) &&
+              entry.startsAt.isBefore(end),
+        )
+        .toList();
+    final times = [
+      start,
+      ...overlapping.map((entry) => entry.startsAt),
+      ...pending.map((entry) => entry.startsAt),
+    ];
+    var peak = 0;
+    for (final time in times) {
+      final occupied =
+          overlapping
+              .where(
+                (reservation) =>
+                    !reservation.startsAt.isAfter(time) &&
+                    reservation.endsAt.isAfter(time),
+              )
+              .fold<int>(
+                0,
+                (count, reservation) => count + reservation.quantity,
+              ) +
+          pending
+              .where(
+                (entry) =>
+                    !entry.startsAt.isAfter(time) && entry.endsAt.isAfter(time),
+              )
+              .fold<int>(0, (count, entry) => count + entry.quantity);
+      if (occupied > peak) peak = occupied;
+    }
+    return item.quantity - peak;
   }
 
   @override
@@ -95,32 +147,101 @@ class InMemoryEquipmentRepository implements EquipmentRepository {
     required DateTime start,
     required DateTime end,
   }) async {
-    if (accountId.isEmpty ||
-        studentId.trim().isEmpty ||
-        !start.isAfter(_now()) ||
-        !end.isAfter(start)) {
+    final reservations = await reserveCart(
+      entries: [EquipmentCartEntry(item: item, startsAt: start, endsAt: end)],
+      accountId: accountId,
+      studentId: studentId,
+    );
+    return reservations.single;
+  }
+
+  @override
+  Future<List<EquipmentReservation>> reserveCart({
+    required List<EquipmentCartEntry> entries,
+    required String accountId,
+    required String studentId,
+  }) async {
+    if (entries.isEmpty) {
       throw const EquipmentReservationException(
-        'Choose a valid future time and sign in first.',
+        'Add an item to the cart first.',
       );
     }
-    if (!_items.any((candidate) => candidate.id == item.id)) {
-      throw const EquipmentReservationException('Item could not be found.');
+    if (accountId.isEmpty || studentId.trim().isEmpty) {
+      throw const EquipmentReservationException(
+        'Enter your student ID and sign in first.',
+      );
     }
-    // Recheck the current inventory when saving; the dialog may hold an older item.
-    if (_availableCount(item.id, start, end) < 1) {
-      throw const EquipmentUnavailableException();
+    final now = _now();
+    for (final entry in entries) {
+      if (!entry.startsAt.isAfter(now) ||
+          !entry.endsAt.isAfter(entry.startsAt)) {
+        throw const EquipmentReservationException(
+          'Choose a future start and an end time after it for every item.',
+        );
+      }
+      if (!_items.any((candidate) => candidate.id == entry.item.id)) {
+        throw const EquipmentReservationException(
+          'An item could not be found.',
+        );
+      }
+      if (entry.quantity < 1) {
+        throw const EquipmentReservationException(
+          'Choose a quantity of at least one for every item.',
+        );
+      }
     }
-    final reservation = EquipmentReservation(
-      id: 'demo-${++_nextId}',
-      itemId: item.id,
-      itemName: item.name,
-      accountId: accountId,
-      studentId: studentId.trim(),
-      startsAt: start,
-      endsAt: end,
-    );
-    _reservations.add(reservation);
-    return reservation;
+    // Check the peak number of overlapping rentals, including other cart rows.
+    for (final itemId in entries.map((entry) => entry.item.id).toSet()) {
+      final requested = entries
+          .where((entry) => entry.item.id == itemId)
+          .toList();
+      final existing = _reservations
+          .where((entry) => entry.itemId == itemId)
+          .toList();
+      final starts = [
+        ...requested.map((entry) => entry.startsAt),
+        ...existing.map((entry) => entry.startsAt),
+      ];
+      final quantity = _items.firstWhere((item) => item.id == itemId).quantity;
+      for (final time in starts) {
+        final count =
+            requested
+                .where(
+                  (entry) =>
+                      !entry.startsAt.isAfter(time) &&
+                      entry.endsAt.isAfter(time),
+                )
+                .fold<int>(0, (sum, entry) => sum + entry.quantity) +
+            existing
+                .where(
+                  (entry) =>
+                      !entry.startsAt.isAfter(time) &&
+                      entry.endsAt.isAfter(time),
+                )
+                .fold<int>(0, (sum, entry) => sum + entry.quantity);
+        if (count > quantity) {
+          final name = requested.first.item.name;
+          throw EquipmentUnavailableException(
+            '$name is unavailable for a selected time. Adjust the cart and try again.',
+          );
+        }
+      }
+    }
+    final reservations = [
+      for (final entry in entries)
+        EquipmentReservation(
+          id: 'demo-${++_nextId}',
+          itemId: entry.item.id,
+          itemName: entry.item.name,
+          accountId: accountId,
+          studentId: studentId.trim(),
+          startsAt: entry.startsAt,
+          endsAt: entry.endsAt,
+          quantity: entry.quantity,
+        ),
+    ];
+    _reservations.addAll(reservations);
+    return List.unmodifiable(reservations);
   }
 
   @override
@@ -219,7 +340,7 @@ class InMemoryEquipmentRepository implements EquipmentRepository {
                 !other.startsAt.isAfter(reservation.startsAt) &&
                 other.endsAt.isAfter(reservation.startsAt),
           )
-          .length;
+          .fold<int>(0, (count, other) => count + other.quantity);
       if (overlapping > quantity) {
         throw const EquipmentInventoryException(
           'Quantity cannot be lower than existing reservations at the same time.',

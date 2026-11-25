@@ -1,21 +1,25 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../data/equipment_repository.dart';
+import '../models/equipment_cart_entry.dart';
 import '../models/equipment_item.dart';
-import '../models/student_account.dart';
 
-/// Collects the signed-in student's details and a requested time window.
+/// Chooses one item and time window to add to the local checkout cart.
 class EquipmentReservationDialog extends StatefulWidget {
   const EquipmentReservationDialog({
     super.key,
     required this.item,
-    required this.account,
     required this.repository,
+    required this.cart,
+    this.initialEntry,
   });
 
   final EquipmentItem item;
-  final StudentAccount account;
   final EquipmentRepository repository;
+  final List<EquipmentCartEntry> cart;
+  final EquipmentCartEntry? initialEntry;
 
   @override
   State<EquipmentReservationDialog> createState() =>
@@ -24,24 +28,34 @@ class EquipmentReservationDialog extends StatefulWidget {
 
 class _EquipmentReservationDialogState
     extends State<EquipmentReservationDialog> {
-  late final TextEditingController _firstName = TextEditingController(
-    text: widget.account.firstName,
-  );
-  late final TextEditingController _lastName = TextEditingController(
-    text: widget.account.lastName,
-  );
-  late final TextEditingController _email = TextEditingController(
-    text: widget.account.email,
-  );
-  final TextEditingController _studentId = TextEditingController();
   late DateTime _date = DateUtils.dateOnly(
-    DateTime.now().add(const Duration(days: 1)),
+    widget.initialEntry?.startsAt ??
+        DateTime.now().add(const Duration(days: 1)),
   );
-  TimeOfDay _startTime = const TimeOfDay(hour: 10, minute: 0);
-  TimeOfDay _endTime = const TimeOfDay(hour: 11, minute: 0);
+  late TimeOfDay _startTime = widget.initialEntry == null
+      ? const TimeOfDay(hour: 10, minute: 0)
+      : TimeOfDay.fromDateTime(widget.initialEntry!.startsAt);
+  late TimeOfDay _endTime = widget.initialEntry == null
+      ? const TimeOfDay(hour: 11, minute: 0)
+      : TimeOfDay.fromDateTime(widget.initialEntry!.endsAt);
   String? _error;
-  bool _saving = false;
+  late int _quantity = widget.initialEntry?.quantity ?? 1;
+  Timer? _availabilityTimer;
   late Future<int> _available = _checkAvailability();
+
+  @override
+  void initState() {
+    super.initState();
+    _availabilityTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (mounted) _refreshAvailability();
+    });
+  }
+
+  @override
+  void dispose() {
+    _availabilityTimer?.cancel();
+    super.dispose();
+  }
 
   DateTime get _start => DateTime(
     _date.year,
@@ -57,9 +71,15 @@ class _EquipmentReservationDialogState
     _endTime.hour,
     _endTime.minute,
   );
+  Future<int> _checkAvailability() => widget.repository.availableCount(
+    widget.item.id,
+    _start,
+    _end,
+    cart: widget.cart,
+  );
 
-  Future<int> _checkAvailability() =>
-      widget.repository.availableCount(widget.item.id, _start, _end);
+  void _refreshAvailability() =>
+      setState(() => _available = _checkAvailability());
 
   void _updateTime() => setState(() {
     _error = null;
@@ -67,10 +87,11 @@ class _EquipmentReservationDialogState
   });
 
   Future<void> _pickDate() async {
+    final today = DateUtils.dateOnly(DateTime.now());
     final date = await showDatePicker(
       context: context,
-      initialDate: _date,
-      firstDate: DateUtils.dateOnly(DateTime.now()),
+      initialDate: _date.isBefore(today) ? today : _date,
+      firstDate: today,
       lastDate: DateUtils.dateOnly(
         DateTime.now().add(const Duration(days: 365)),
       ),
@@ -94,81 +115,49 @@ class _EquipmentReservationDialogState
     _updateTime();
   }
 
-  Future<void> _reserve() async {
-    if (_saving) return;
-    if (_firstName.text.trim().isEmpty ||
-        _lastName.text.trim().isEmpty ||
-        _email.text.trim().isEmpty ||
-        _studentId.text.trim().isEmpty) {
-      setState(
-        () =>
-            _error = 'Enter your first name, last name, email, and student ID.',
-      );
-      return;
-    }
-    if (_email.text.trim().toLowerCase() !=
-        widget.account.email.toLowerCase()) {
-      setState(() => _error = 'Use the email on your signed-in account.');
-      return;
-    }
+  Future<void> _addToCart() async {
     if (!_start.isAfter(DateTime.now()) || !_end.isAfter(_start)) {
       setState(
         () => _error = 'Choose a future start and an end time after it.',
       );
       return;
     }
-    setState(() {
-      _saving = true;
-      _error = null;
-    });
     try {
-      final reservation = await widget.repository.reserve(
-        item: widget.item,
-        accountId: widget.account.id,
-        studentId: _studentId.text.trim(),
-        start: _start,
-        end: _end,
-      );
-      if (mounted) {
-        Navigator.of(context).pop(reservation);
+      if (await _checkAvailability() < _quantity) {
+        if (mounted) {
+          setState(
+            () =>
+                _error = 'The requested quantity is unavailable for this time.',
+          );
+        }
+        return;
       }
-    } on EquipmentUnavailableException {
       if (mounted) {
-        setState(() {
-          _error =
-              'No ${widget.item.name.toLowerCase()} units are available for that time. Choose another time.';
-          _available = _checkAvailability();
-        });
-      }
-    } on EquipmentReservationException catch (error) {
-      if (mounted) {
-        setState(() => _error = error.message);
+        Navigator.of(context).pop(
+          EquipmentCartEntry(
+            item: widget.item,
+            startsAt: _start,
+            endsAt: _end,
+            quantity: _quantity,
+          ),
+        );
       }
     } catch (_) {
       if (mounted) {
         setState(
-          () => _error = 'Could not reserve this item. Please try again.',
+          () => _error = 'Availability could not be checked. Try again.',
         );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _saving = false);
       }
     }
   }
 
   @override
-  void dispose() {
-    _firstName.dispose();
-    _lastName.dispose();
-    _email.dispose();
-    _studentId.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) => AlertDialog(
-    title: Text('Reserve ${widget.item.name}'),
+    title: Text(
+      widget.initialEntry == null
+          ? 'Add ${widget.item.name} to cart'
+          : 'Edit ${widget.item.name}',
+    ),
     content: SizedBox(
       width: 480,
       child: SingleChildScrollView(
@@ -176,28 +165,10 @@ class _EquipmentReservationDialogState
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Confirm your account details and choose when you need the item.',
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _firstName,
-              readOnly: widget.account.firstName.isNotEmpty,
-              decoration: const InputDecoration(labelText: 'First name'),
-            ),
-            TextField(
-              controller: _lastName,
-              readOnly: widget.account.lastName.isNotEmpty,
-              decoration: const InputDecoration(labelText: 'Last name'),
-            ),
-            TextField(
-              controller: _email,
-              readOnly: true,
-              decoration: const InputDecoration(labelText: 'Email'),
-            ),
-            TextField(
-              controller: _studentId,
-              decoration: const InputDecoration(labelText: 'Student ID'),
+            Text(
+              widget.initialEntry == null
+                  ? 'Choose when you need this item. You can add more items or time windows before checkout.'
+                  : 'Change the rental time or quantity before checkout.',
             ),
             const SizedBox(height: 16),
             OutlinedButton.icon(
@@ -225,16 +196,59 @@ class _EquipmentReservationDialogState
                 future: _available,
                 builder: (context, snapshot) {
                   if (snapshot.hasError) {
-                    return const Text('Availability could not be checked.');
+                    return TextButton.icon(
+                      onPressed: _refreshAvailability,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text(
+                        'Availability could not be checked. Retry',
+                      ),
+                    );
                   }
-                  if (!snapshot.hasData) {
-                    return const LinearProgressIndicator();
-                  }
+                  if (!snapshot.hasData) return const LinearProgressIndicator();
                   final count = snapshot.data!;
-                  return Text(
-                    count == 0
-                        ? 'No units available for this time.'
-                        : '$count of ${widget.item.quantity} available for this time.',
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '$count of ${widget.item.quantity} available for this time',
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'Refresh availability',
+                            onPressed: _refreshAvailability,
+                            icon: const Icon(Icons.refresh),
+                          ),
+                        ],
+                      ),
+                      const Text('Includes items already in your cart.'),
+                      Row(
+                        children: [
+                          const Text('Quantity'),
+                          IconButton(
+                            tooltip: 'Decrease quantity',
+                            onPressed: _quantity > 1
+                                ? () => setState(() => _quantity--)
+                                : null,
+                            icon: const Icon(Icons.remove_circle_outline),
+                          ),
+                          Text('$_quantity'),
+                          IconButton(
+                            tooltip: 'Increase quantity',
+                            onPressed: _quantity < count
+                                ? () => setState(() => _quantity++)
+                                : null,
+                            icon: const Icon(Icons.add_circle_outline),
+                          ),
+                        ],
+                      ),
+                      if (_quantity > count)
+                        const Text(
+                          'Reduce the quantity or choose another time.',
+                        ),
+                    ],
                   );
                 },
               ),
@@ -251,12 +265,14 @@ class _EquipmentReservationDialogState
     ),
     actions: [
       TextButton(
-        onPressed: _saving ? null : () => Navigator.of(context).pop(),
+        onPressed: () => Navigator.of(context).pop(),
         child: const Text('Cancel'),
       ),
       FilledButton(
-        onPressed: _saving ? null : _reserve,
-        child: Text(_saving ? 'Reserving...' : 'Reserve item'),
+        onPressed: _addToCart,
+        child: Text(
+          widget.initialEntry == null ? 'Add to cart' : 'Save changes',
+        ),
       ),
     ],
   );

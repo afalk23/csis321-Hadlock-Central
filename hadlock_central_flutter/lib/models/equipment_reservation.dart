@@ -8,6 +8,7 @@ class EquipmentReservation {
     required this.studentId,
     required this.startsAt,
     required this.endsAt,
+    this.quantity = 1,
     this.completedAt,
   });
 
@@ -18,6 +19,7 @@ class EquipmentReservation {
   final String studentId;
   final DateTime startsAt;
   final DateTime endsAt;
+  final int quantity;
   final DateTime? completedAt;
 
   EquipmentReservation completed(DateTime at) => EquipmentReservation(
@@ -28,6 +30,7 @@ class EquipmentReservation {
     studentId: studentId,
     startsAt: startsAt,
     endsAt: endsAt,
+    quantity: quantity,
     completedAt: at,
   );
 }

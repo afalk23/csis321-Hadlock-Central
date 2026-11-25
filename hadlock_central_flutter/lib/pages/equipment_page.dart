@@ -2,20 +2,24 @@ import 'package:flutter/material.dart';
 
 import '../data/equipment_repository.dart';
 import '../models/equipment_item.dart';
+import '../models/equipment_cart_entry.dart';
 import '../models/equipment_reservation.dart';
 import '../models/student_account.dart';
 import 'equipment_reservation_dialog.dart';
+import 'equipment_checkout_dialog.dart';
 
 /// Browse equipment rentals and facility reservation spaces.
 class EquipmentPage extends StatefulWidget {
   const EquipmentPage({
     super.key,
     required this.repository,
+    required this.cart,
     required this.account,
     required this.onOpenSchedule,
   });
 
   final EquipmentRepository repository;
+  final List<EquipmentCartEntry> cart;
   final StudentAccount account;
   final VoidCallback onOpenSchedule;
 
@@ -84,24 +88,57 @@ class _EquipmentPageState extends State<EquipmentPage> {
     if (saved == true && mounted) _reloadStaffReservations();
   }
 
-  Future<void> _reserve(EquipmentItem item) async {
-    final reservation = await showDialog<EquipmentReservation>(
+  Future<void> _addToCart(EquipmentItem item) async {
+    final entry = await showDialog<EquipmentCartEntry>(
       context: context,
       builder: (context) => EquipmentReservationDialog(
         item: item,
+        repository: widget.repository,
+        cart: widget.cart,
+      ),
+    );
+    if (!mounted || entry == null) return;
+    setState(() => widget.cart.add(entry));
+  }
+
+  Future<void> _editCartEntry(int index) async {
+    final original = widget.cart[index];
+    final otherEntries = [
+      for (var i = 0; i < widget.cart.length; i++)
+        if (i != index) widget.cart[i],
+    ];
+    final edited = await showDialog<EquipmentCartEntry>(
+      context: context,
+      builder: (context) => EquipmentReservationDialog(
+        item: original.item,
+        repository: widget.repository,
+        cart: otherEntries,
+        initialEntry: original,
+      ),
+    );
+    if (!mounted || edited == null) return;
+    setState(() => widget.cart[index] = edited);
+  }
+
+  Future<void> _checkout() async {
+    if (widget.cart.isEmpty) return;
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (context) => EquipmentCheckoutDialog(
+        entries: List.unmodifiable(widget.cart),
         account: widget.account,
         repository: widget.repository,
       ),
     );
-    if (!mounted || reservation == null) return;
+    if (!mounted || saved != true) return;
+    setState(widget.cart.clear);
     if (_staffPreview) _reloadStaffReservations();
-    // Personal reservations appear only on the signed-in student's calendar.
     await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Equipment reserved'),
+        title: const Text('Checkout complete'),
         content: const Text(
-          'Come to the front desk for your reservation. You can find it on your calendar.',
+          'All rentals are reserved. Come to the front desk for pickup. You can find them on your calendar.',
         ),
         actions: [
           TextButton(
@@ -174,6 +211,8 @@ class _EquipmentPageState extends State<EquipmentPage> {
                     const SizedBox(height: 8),
                     _buildStaffReservations(),
                   ],
+                  const SizedBox(height: 8),
+                  _buildCart(),
                   const SizedBox(height: 18),
                   Container(
                     width: double.infinity,
@@ -185,7 +224,7 @@ class _EquipmentPageState extends State<EquipmentPage> {
                     child: Text(
                       _showReservations
                           ? 'Browse spaces below and check the schedule for existing bookings. Online facility booking is not connected yet.'
-                          : 'Sample inventory · Equipment reservations are a local demo and are cleared when the app restarts.',
+                          : 'Sample inventory · Cart and equipment reservations are a local demo and are cleared when the app restarts.',
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -328,6 +367,7 @@ class _EquipmentPageState extends State<EquipmentPage> {
                                         child: _EquipmentCard(
                                           item: item,
                                           onTap: () => _showDetails(item),
+                                          onAddToCart: () => _addToCart(item),
                                           onEditQuantity: _staffPreview
                                               ? () => _editQuantity(item)
                                               : null,
@@ -349,6 +389,63 @@ class _EquipmentPageState extends State<EquipmentPage> {
       },
     );
   }
+
+  Widget _buildCart() => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 12,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                'Checkout cart (${widget.cart.length})',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              FilledButton.icon(
+                onPressed: widget.cart.isEmpty ? null : _checkout,
+                icon: const Icon(Icons.shopping_cart_checkout),
+                label: const Text('Checkout all'),
+              ),
+            ],
+          ),
+          if (widget.cart.isEmpty)
+            const Text('Choose an equipment item and time to add it here.'),
+          for (var index = 0; index < widget.cart.length; index++)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                '${widget.cart[index].item.name} × ${widget.cart[index].quantity}',
+              ),
+              subtitle: Text(
+                '${MaterialLocalizations.of(context).formatMediumDate(widget.cart[index].startsAt)} · '
+                '${TimeOfDay.fromDateTime(widget.cart[index].startsAt).format(context)}–'
+                '${TimeOfDay.fromDateTime(widget.cart[index].endsAt).format(context)}',
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    tooltip: 'Edit ${widget.cart[index].item.name} in cart',
+                    onPressed: () => _editCartEntry(index),
+                    icon: const Icon(Icons.edit_outlined),
+                  ),
+                  IconButton(
+                    tooltip: 'Remove ${widget.cart[index].item.name} from cart',
+                    onPressed: () =>
+                        setState(() => widget.cart.removeAt(index)),
+                    icon: const Icon(Icons.remove_circle_outline),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    ),
+  );
 
   /// Staff preview reads every equipment reservation for front desk pickup.
   Widget _buildStaffReservations() => Card(
@@ -403,7 +500,9 @@ class _EquipmentPageState extends State<EquipmentPage> {
                         ListTile(
                           contentPadding: EdgeInsets.zero,
                           leading: const Icon(Icons.inventory_2_outlined),
-                          title: Text(reservation.itemName),
+                          title: Text(
+                            '${reservation.itemName} × ${reservation.quantity}',
+                          ),
                           subtitle: Text(
                             'Student ID: ${reservation.studentId}\n'
                             '${MaterialLocalizations.of(context).formatMediumDate(reservation.startsAt)} '
@@ -467,7 +566,9 @@ class _EquipmentPageState extends State<EquipmentPage> {
                     children: [
                       for (final entry in cancellations)
                         ListTile(
-                          title: Text(entry.reservation.itemName),
+                          title: Text(
+                            '${entry.reservation.itemName} × ${entry.reservation.quantity}',
+                          ),
                           subtitle: Text(
                             'Student ID: ${entry.reservation.studentId}\n'
                             'Reason: ${entry.reason}',
@@ -563,6 +664,8 @@ class _EquipmentPageState extends State<EquipmentPage> {
             Text(space.type, style: Theme.of(context).textTheme.labelLarge),
             const SizedBox(height: 12),
             Text(space.description),
+            const SizedBox(height: 12),
+            const Text('Must contact front desk to make a booking reservation'),
           ],
         ),
         actions: [
@@ -601,7 +704,7 @@ class _EquipmentPageState extends State<EquipmentPage> {
             Text('Sample quantity: ${item.quantity}'),
             const SizedBox(height: 8),
             const Text(
-              'Choose a time to check availability and reserve this item.',
+              'Choose a time to check availability and add this item to your cart.',
             ),
           ],
         ),
@@ -613,9 +716,9 @@ class _EquipmentPageState extends State<EquipmentPage> {
           FilledButton(
             onPressed: () {
               Navigator.of(context).pop();
-              _reserve(item);
+              _addToCart(item);
             },
-            child: const Text('Check availability'),
+            child: const Text('Choose time'),
           ),
         ],
       ),
@@ -695,7 +798,7 @@ class _ReservationActionDialogState extends State<_ReservationActionDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '${widget.reservation.itemName} · Student ID: ${widget.reservation.studentId}',
+            '${widget.reservation.itemName} × ${widget.reservation.quantity} · Student ID: ${widget.reservation.studentId}',
           ),
           const SizedBox(height: 12),
           if (widget.cancel) ...[
@@ -771,11 +874,13 @@ class _EquipmentCard extends StatelessWidget {
   const _EquipmentCard({
     required this.item,
     required this.onTap,
+    required this.onAddToCart,
     required this.onEditQuantity,
   });
 
   final EquipmentItem item;
   final VoidCallback onTap;
+  final VoidCallback onAddToCart;
   final VoidCallback? onEditQuantity;
 
   @override
@@ -809,6 +914,12 @@ class _EquipmentCard extends StatelessWidget {
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: onAddToCart,
+              icon: const Icon(Icons.add_shopping_cart),
+              label: const Text('Add to cart'),
+            ),
+            const SizedBox(height: 8),
             if (onEditQuantity != null) ...[
               OutlinedButton.icon(
                 onPressed: onEditQuantity,

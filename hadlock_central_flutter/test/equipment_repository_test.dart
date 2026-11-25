@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hadlock_central_flutter/data/equipment_repository.dart';
+import 'package:hadlock_central_flutter/models/equipment_cart_entry.dart';
 
 void main() {
   test(
@@ -188,4 +189,161 @@ void main() {
       item.quantity,
     );
   });
+
+  test(
+    'cart checkout reserves several items and time windows together',
+    () async {
+      final repository = InMemoryEquipmentRepository();
+      final items = await repository.getItems();
+      final bike = items.firstWhere((item) => item.id == 'bike');
+      final helmet = items.firstWhere((item) => item.id == 'helmet');
+      final start = DateTime.now().add(const Duration(days: 2));
+      final entries = [
+        EquipmentCartEntry(
+          item: bike,
+          startsAt: start,
+          endsAt: start.add(const Duration(hours: 1)),
+        ),
+        EquipmentCartEntry(
+          item: helmet,
+          startsAt: start,
+          endsAt: start.add(const Duration(hours: 1)),
+        ),
+        EquipmentCartEntry(
+          item: bike,
+          startsAt: start.add(const Duration(hours: 2)),
+          endsAt: start.add(const Duration(hours: 3)),
+        ),
+      ];
+
+      final saved = await repository.reserveCart(
+        entries: entries,
+        accountId: 'student-a',
+        studentId: '1001',
+      );
+      expect(saved.length, 3);
+      expect(saved.map((entry) => entry.id).toSet().length, 3);
+      expect((await repository.reservationsFor('student-a')).length, 3);
+    },
+  );
+
+  test('cart checkout rejects overlap without saving any rows', () async {
+    final repository = InMemoryEquipmentRepository();
+    final bike = (await repository.getItems()).firstWhere(
+      (item) => item.id == 'bike',
+    );
+    final start = DateTime.now().add(const Duration(days: 2));
+    final entries = List.generate(
+      bike.quantity + 1,
+      (_) => EquipmentCartEntry(
+        item: bike,
+        startsAt: start,
+        endsAt: start.add(const Duration(hours: 1)),
+      ),
+    );
+    await expectLater(
+      repository.reserveCart(
+        entries: entries,
+        accountId: 'student-a',
+        studentId: '1001',
+      ),
+      throwsA(isA<EquipmentUnavailableException>()),
+    );
+    expect(await repository.getAllReservations(), isEmpty);
+  });
+
+  test(
+    'selected quantities change availability for overlapping times',
+    () async {
+      final repository = InMemoryEquipmentRepository();
+      final bike = (await repository.getItems()).firstWhere(
+        (item) => item.id == 'bike',
+      );
+      final start = DateTime.now().add(const Duration(days: 2));
+      final end = start.add(const Duration(hours: 2));
+      final saved = await repository.reserveCart(
+        entries: [
+          EquipmentCartEntry(
+            item: bike,
+            startsAt: start,
+            endsAt: end,
+            quantity: 1,
+          ),
+        ],
+        accountId: 'student-a',
+        studentId: '1001',
+      );
+      expect(saved.single.quantity, 1);
+      expect(
+        await repository.availableCount(
+          bike.id,
+          start.add(const Duration(minutes: 30)),
+          end,
+        ),
+        1,
+      );
+      expect(
+        await repository.availableCount(
+          bike.id,
+          end,
+          end.add(const Duration(hours: 1)),
+        ),
+        2,
+      );
+      expect(
+        await repository.availableCount(
+          bike.id,
+          start,
+          end,
+          cart: [
+            EquipmentCartEntry(
+              item: bike,
+              startsAt: start,
+              endsAt: end,
+              quantity: 1,
+            ),
+          ],
+        ),
+        0,
+      );
+
+      await expectLater(
+        repository.reserveCart(
+          entries: [
+            EquipmentCartEntry(
+              item: bike,
+              startsAt: start,
+              endsAt: end,
+              quantity: 2,
+            ),
+          ],
+          accountId: 'student-b',
+          studentId: '1002',
+        ),
+        throwsA(isA<EquipmentUnavailableException>()),
+      );
+      expect((await repository.getAllReservations()).length, 1);
+      await repository.cancelReservation(
+        saved.single.id,
+        userContacted: true,
+        bossApproved: true,
+        reason: 'Changed plans',
+      );
+      expect(await repository.availableCount(bike.id, start, end), 2);
+      final pair = await repository.reserveCart(
+        entries: [
+          EquipmentCartEntry(
+            item: bike,
+            startsAt: start,
+            endsAt: end,
+            quantity: 2,
+          ),
+        ],
+        accountId: 'student-b',
+        studentId: '1002',
+      );
+      expect(pair.single.quantity, 2);
+      expect(await repository.availableCount(bike.id, start, end), 0);
+    },
+  );
 }
