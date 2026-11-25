@@ -15,7 +15,7 @@ class _RegisterPageState extends State<RegisterPage> {
   TextEditingController lnController = TextEditingController();
   TextEditingController emailController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
-  
+
   // Prevents multiple requests at the same time.
   bool _isSubmitting = false;
 
@@ -43,7 +43,22 @@ class _RegisterPageState extends State<RegisterPage> {
 
     // Check that the email belongs to George Fox University.
     if (!emailController.text.trim().toLowerCase().endsWith('@georgefox.edu')) {
-      _showMessage('Please use a George Fox University email (@georgefox.edu).');
+      _showMessage(
+        'Please use a George Fox University email (@georgefox.edu).',
+      );
+      return;
+    }
+
+    // Require a capital letter, number, and allowed special character.
+    final password = passwordController.text;
+
+    if (!RegExp(r'[A-Z]').hasMatch(password) ||
+        !RegExp(r'[0-9]').hasMatch(password) ||
+        !RegExp(r'[!@#$%&*?]').hasMatch(password)) {
+      await _showMessage(
+        'Password must include at least one capital letter, one number, '
+        'and one special character (! @ # \$ % & * ?).',
+      );
       return;
     }
 
@@ -65,8 +80,7 @@ class _RegisterPageState extends State<RegisterPage> {
       if (value['success'] == true) {
         // Registration was successful.
         await _showMessage(
-          value['message']?.toString() ??
-              'Registration successful!',
+          value['message']?.toString() ?? 'Registration successful!',
         );
 
         if (!mounted) return;
@@ -84,9 +98,7 @@ class _RegisterPageState extends State<RegisterPage> {
       // Handle failed requests or unexpected errors.
       if (!mounted) return;
 
-      await _showMessage(
-        'Unable to complete registration. Please try again.',
-      );
+      await _showMessage('Unable to complete registration. Please try again.');
     } finally {
       // Allow another submission after the request finishes.
       if (mounted) {
@@ -96,7 +108,7 @@ class _RegisterPageState extends State<RegisterPage> {
       }
     }
   }
-  
+
   /// Displays a dialog with the provided message.
   Future<void> _showMessage(String message) async {
     if (!mounted) return;
@@ -147,10 +159,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       children: [
                         Expanded(child: _buildWelcomePanel(colors)),
                         const SizedBox(width: 48),
-                        SizedBox(
-                          width: 460,
-                          child: _buildRegistrationCard(),
-                        ),
+                        SizedBox(width: 460, child: _buildRegistrationCard()),
                       ],
                     )
                   : SizedBox(
@@ -193,17 +202,14 @@ class _RegisterPageState extends State<RegisterPage> {
         const SizedBox(height: 18),
         Text(
           'Create your account',
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: colors.primary,
-                fontWeight: FontWeight.bold,
-              ),
+          style: Theme.of(context).textTheme.headlineMedium
+              ?.copyWith(color: colors.primary, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
         Text(
           'Join Hadlock Central with your George Fox email.',
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: colors.onSurfaceVariant,
-              ),
+          style: Theme.of(context).textTheme.bodyLarge
+              ?.copyWith(color: colors.onSurfaceVariant),
         ),
       ],
     );
@@ -275,6 +281,8 @@ class _RegisterPageState extends State<RegisterPage> {
               onSubmitted: (_) => _submitRegistration(),
               decoration: const InputDecoration(
                 labelText: 'Password',
+                helperText: r'Capital letter, number, and ! @ # $ % & * ?',
+                helperMaxLines: 2,
                 prefixIcon: Icon(Icons.lock_outline),
                 border: OutlineInputBorder(),
               ),
