@@ -17,6 +17,17 @@ abstract class EquipmentRepository {
 
   /// Staff preview operations; a production API must authorize these calls.
   Future<List<EquipmentReservation>> getAllReservations();
+  Future<List<EquipmentCancellation>> getCancellations();
+  Future<void> completeReservation(
+    String reservationId, {
+    required bool returned,
+  });
+  Future<void> cancelReservation(
+    String reservationId, {
+    required bool userContacted,
+    required bool bossApproved,
+    required String reason,
+  });
   Future<void> updateQuantity(String itemId, int quantity);
 }
 
@@ -34,10 +45,20 @@ class EquipmentInventoryException implements Exception {
   final String message;
 }
 
+class EquipmentReservationActionException implements Exception {
+  const EquipmentReservationActionException(this.message);
+  final String message;
+}
+
 /// Example catalog for UI development; it does not represent live inventory.
 class InMemoryEquipmentRepository implements EquipmentRepository {
+  InMemoryEquipmentRepository({DateTime Function()? now})
+    : _now = now ?? DateTime.now;
+
+  final DateTime Function() _now;
   final List<EquipmentItem> _items = List.of(_sampleItems);
   final List<EquipmentReservation> _reservations = [];
+  final List<EquipmentCancellation> _cancellations = [];
   int _nextId = 0;
 
   @override
@@ -76,7 +97,7 @@ class InMemoryEquipmentRepository implements EquipmentRepository {
   }) async {
     if (accountId.isEmpty ||
         studentId.trim().isEmpty ||
-        !start.isAfter(DateTime.now()) ||
+        !start.isAfter(_now()) ||
         !end.isAfter(start)) {
       throw const EquipmentReservationException(
         'Choose a valid future time and sign in first.',
@@ -113,6 +134,70 @@ class InMemoryEquipmentRepository implements EquipmentRepository {
       List.unmodifiable(_reservations);
 
   @override
+  Future<List<EquipmentCancellation>> getCancellations() async =>
+      List.unmodifiable(_cancellations);
+
+  @override
+  Future<void> completeReservation(
+    String reservationId, {
+    required bool returned,
+  }) async {
+    final index = _reservations.indexWhere(
+      (entry) => entry.id == reservationId,
+    );
+    if (index < 0) {
+      throw const EquipmentReservationActionException('Reservation not found.');
+    }
+    final reservation = _reservations[index];
+    if (reservation.completedAt != null) {
+      throw const EquipmentReservationActionException('Already completed.');
+    }
+    if (_now().isBefore(reservation.endsAt)) {
+      throw const EquipmentReservationActionException(
+        'Wait until the rental time has ended.',
+      );
+    }
+    if (!returned) {
+      throw const EquipmentReservationActionException(
+        'Confirm the equipment was returned.',
+      );
+    }
+    _reservations[index] = reservation.completed(_now());
+  }
+
+  @override
+  Future<void> cancelReservation(
+    String reservationId, {
+    required bool userContacted,
+    required bool bossApproved,
+    required String reason,
+  }) async {
+    final index = _reservations.indexWhere(
+      (entry) => entry.id == reservationId,
+    );
+    if (index < 0) {
+      throw const EquipmentReservationActionException('Reservation not found.');
+    }
+    if (_reservations[index].completedAt != null) {
+      throw const EquipmentReservationActionException(
+        'A completed rental cannot be cancelled.',
+      );
+    }
+    if (!userContacted || !bossApproved || reason.trim().isEmpty) {
+      throw const EquipmentReservationActionException(
+        'Confirm contact and boss approval, and enter a cancellation note.',
+      );
+    }
+    _cancellations.add(
+      EquipmentCancellation(
+        reservation: _reservations.removeAt(index),
+        reason: reason.trim(),
+        cancelledAt: _now(),
+      ),
+    );
+  }
+
+  @override
   Future<void> updateQuantity(String itemId, int quantity) async {
     final index = _items.indexWhere((item) => item.id == itemId);
     if (index < 0 || quantity < 0) {
@@ -124,7 +209,7 @@ class InMemoryEquipmentRepository implements EquipmentRepository {
         .where(
           (reservation) =>
               reservation.itemId == itemId &&
-              reservation.endsAt.isAfter(DateTime.now()),
+              reservation.endsAt.isAfter(_now()),
         )
         .toList();
     for (final reservation in upcoming) {

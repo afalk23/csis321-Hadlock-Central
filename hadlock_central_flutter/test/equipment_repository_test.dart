@@ -95,4 +95,97 @@ void main() {
     );
     expect(await repository.availableCount(item.id, start, end), 1);
   });
+
+  test(
+    'completion requires the rental to end and equipment to be returned',
+    () async {
+      var now = DateTime(2026, 11, 24, 10);
+      final repository = InMemoryEquipmentRepository(now: () => now);
+      final item = (await repository.getItems()).first;
+      final reservation = await repository.reserve(
+        item: item,
+        accountId: 'student-a',
+        studentId: '1001',
+        start: now.add(const Duration(hours: 1)),
+        end: now.add(const Duration(hours: 2)),
+      );
+
+      await expectLater(
+        repository.completeReservation(reservation.id, returned: true),
+        throwsA(isA<EquipmentReservationActionException>()),
+      );
+      now = now.add(const Duration(hours: 3));
+      await expectLater(
+        repository.completeReservation(reservation.id, returned: false),
+        throwsA(isA<EquipmentReservationActionException>()),
+      );
+      await repository.completeReservation(reservation.id, returned: true);
+      expect((await repository.getAllReservations()).single.completedAt, now);
+      await expectLater(
+        repository.completeReservation(reservation.id, returned: true),
+        throwsA(isA<EquipmentReservationActionException>()),
+      );
+    },
+  );
+
+  test('cancellation requires checks and keeps a staff note', () async {
+    final repository = InMemoryEquipmentRepository();
+    final item = (await repository.getItems()).first;
+    final start = DateTime.now().add(const Duration(days: 2));
+    final reservation = await repository.reserve(
+      item: item,
+      accountId: 'student-a',
+      studentId: '1001',
+      start: start,
+      end: start.add(const Duration(hours: 1)),
+    );
+    await expectLater(
+      repository.cancelReservation(
+        reservation.id,
+        userContacted: false,
+        bossApproved: true,
+        reason: 'Reason',
+      ),
+      throwsA(isA<EquipmentReservationActionException>()),
+    );
+    await expectLater(
+      repository.cancelReservation(
+        reservation.id,
+        userContacted: true,
+        bossApproved: false,
+        reason: 'Reason',
+      ),
+      throwsA(isA<EquipmentReservationActionException>()),
+    );
+    await expectLater(
+      repository.cancelReservation(
+        reservation.id,
+        userContacted: true,
+        bossApproved: true,
+        reason: '  ',
+      ),
+      throwsA(isA<EquipmentReservationActionException>()),
+    );
+    expect((await repository.reservationsFor('student-a')).length, 1);
+    await repository.cancelReservation(
+      reservation.id,
+      userContacted: true,
+      bossApproved: true,
+      reason: '  Schedule conflict  ',
+    );
+    expect(await repository.reservationsFor('student-a'), isEmpty);
+    expect(await repository.getAllReservations(), isEmpty);
+    expect(
+      (await repository.getCancellations()).single.reason,
+      'Schedule conflict',
+    );
+    expect(
+      await repository.availableCount(
+        item.id,
+        start,
+        start.add(const Duration(hours: 1)),
+      ),
+      item.quantity,
+    );
+  });
 }

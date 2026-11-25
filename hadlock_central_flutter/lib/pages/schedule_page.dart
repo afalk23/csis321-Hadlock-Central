@@ -167,7 +167,7 @@ class _SchedulePageState extends State<SchedulePage> {
         ),
       );
       // If the deleted entry was the only one on the selected date, move the selection to the next day so the agenda is not empty.
-    } catch (_) {  
+    } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -180,7 +180,7 @@ class _SchedulePageState extends State<SchedulePage> {
     }
   }
 
-  // Returns the list of calendar entries for the selected date.    
+  // Returns the list of calendar entries for the selected date.
   @override
   Widget build(BuildContext context) {
     final staffPreview = widget.account.isEmployee && _staffPreview;
@@ -270,8 +270,10 @@ class _SchedulePageState extends State<SchedulePage> {
                         date: _selectedDate,
                         reservations: _personalReservations
                             .where(
-                              (entry) =>
-                                  _sameDay(entry.startsAt, _selectedDate), // Filter reservations for the selected date
+                              (entry) => _sameDay(
+                                entry.startsAt,
+                                _selectedDate,
+                              ), // Filter reservations for the selected date
                             )
                             .toList(), // Pass the filtered reservations to the agenda
                       ),
@@ -630,7 +632,7 @@ class _PersonalEquipmentAgenda extends StatelessWidget {
               ),
               title: Text(reservation.itemName),
               subtitle: Text(
-                '${TimeOfDay.fromDateTime(reservation.startsAt).format(context)}–${TimeOfDay.fromDateTime(reservation.endsAt).format(context)} · Pick up at the front desk',
+                '${TimeOfDay.fromDateTime(reservation.startsAt).format(context)}–${TimeOfDay.fromDateTime(reservation.endsAt).format(context)} · ${reservation.completedAt == null ? 'Pick up at the front desk' : 'Completed and returned'}',
               ),
             ),
         ],
